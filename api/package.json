@@ -5,11 +5,14 @@
   "description": "API REST SoundHub (partie Cassandra)",
   "main": "server.js",
   "scripts": {
+    "dev": "node server.js",
     "start": "node server.js"
   },
   "dependencies": {
     "cassandra-driver": "^4.7.2",
+    "cors": "^2.8.6",
     "csv-parse": "^5.5.6",
+    "dotenv": "^16.4.5",
     "express": "^4.19.2"
   }
 }

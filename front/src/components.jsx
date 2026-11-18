@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Check, Music2, X } from 'lucide-react';
+import { getMedia } from './services/coverService.js';
+import { hashColor } from './hooks/useCoverColor.js';
 
 export function Button({ children, className = '', ...props }) {
   return <button className={`button ${className}`} {...props}>{children}</button>;
@@ -21,15 +23,55 @@ export function Avatar({ name = '?' }) {
 }
 
 export function SongCover({ song, size = 'medium', className = '' }) {
-  const id = String(song?.song_id || song?.track_name || 'soundhub');
-  let hash = 0;
-  for (let i = 0; i < id.length; i += 1) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
-  const hue = Math.abs(hash) % 360;
-  const style = { '--cover-hue': hue, '--cover-hue-next': (hue + 56) % 360 };
+  const rootRef = useRef(null);
+  const [visible, setVisible] = useState(false);
+  const [media, setMedia] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const id = String(song?.song_id || song?.id || 'soundhub');
+  const title = song?.track_name || song?.title || 'Titre inconnu';
+  const initials = title.trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join('').toUpperCase();
+
+  useEffect(() => {
+    const node = rootRef.current;
+    if (!node) return;
+    if (!('IntersectionObserver' in window)) {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setVisible(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '160px' });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    getMedia(id).then((result) => !cancelled && setMedia(result)).catch(() => !cancelled && setMedia({ source: 'none', cover_url: null }));
+    return () => { cancelled = true; };
+  }, [id, visible]);
+
+  const dimensions = size === 'sm' || size === 'small' ? 40 : size === 'lg' ? 320 : 160;
+  const coverUrl = media?.cover_url;
+  const showImage = coverUrl && !failed;
+  const fallback = hashColor(id);
   return (
-    <span className={`song-cover cover-${size} ${className}`} style={style} aria-hidden="true">
-      <Music2 size={size === 'small' ? 19 : 25} strokeWidth={1.5} />
-      {size !== 'small' && <span className="cover-orbit" />}
+    <span
+      ref={rootRef}
+      className={`song-cover cover-${size} ${className} ${!media ? 'cover-loading' : ''}`}
+      style={{ width: dimensions, height: dimensions, '--cover-hue': fallback }}
+      role="img"
+      aria-label={`Pochette de ${title}`}
+    >
+      {showImage ? (
+        <img src={coverUrl} width={dimensions} height={dimensions} loading="lazy" decoding="async" alt={`Pochette de ${title}`} onError={() => setFailed(true)} />
+      ) : (
+        <span className="cover-fallback" aria-hidden="true"><strong>{initials || 'SH'}</strong></span>
+      )}
     </span>
   );
 }
@@ -50,12 +92,12 @@ export function EmptyState({ title = 'Aucun résultat', description = 'Essayez d
   return <div className="state-card"><span className="state-icon"><Music2 size={20} /></span><strong>{title}</strong><p>{description}</p></div>;
 }
 
-export function ErrorState({ message, onRetry, compact = false }) {
+export function ErrorState({ message, hint, onRetry, compact = false }) {
   return (
     <div className={`state-card error-state ${compact ? 'state-compact' : ''}`} role="alert">
       <span className="state-icon"><AlertCircle size={20} /></span>
       <strong>Les données ne sont pas disponibles</strong>
-      <p>{message ? `${message} — Vérifiez que l’API et Cassandra sont accessibles.` : 'Vérifiez que l’API et Cassandra sont démarrées, puis réessayez.'}</p>
+      <p>{message ? `${message} — ${hint || 'Vérifiez que l’API et Cassandra sont accessibles.'}` : 'Vérifiez que l’API et Cassandra sont démarrées, puis réessayez.'}</p>
       {onRetry && <button className="text-button" onClick={onRetry}>Réessayer</button>}
     </div>
   );
@@ -87,8 +129,8 @@ export function Status({ loading, error, empty, retry }) {
 }
 
 export function SongCell({ e }) {
-  if (!e.track_name) return <span className="muted">{e.song_id}</span>;
-  return <span className="song-cell"><strong>{e.track_name}</strong><span className="muted">{e.artists}</span></span>;
+  if (!e.track_name) return <span className="table-song"><SongCover song={e} size="sm" /><span className="muted">{e.song_id}</span></span>;
+  return <span className="table-song"><SongCover song={e} size="sm" /><span className="song-cell"><strong>{e.track_name}</strong><span className="muted">{formatArtists(e.artists)}</span></span></span>;
 }
 
 export function formatDuration(ms) {
@@ -103,3 +145,11 @@ export const formatDateTime = (iso) => {
 };
 
 export const getRows = (result) => Array.isArray(result) ? result : result?.events || result?.songs || result?.data || [];
+
+export function formatArtists(value) {
+  return String(value || '')
+    .split(';')
+    .map((artist) => artist.trim())
+    .filter(Boolean)
+    .join(', ');
+}

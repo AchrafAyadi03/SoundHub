@@ -1,20 +1,35 @@
-// API REST SoundHub : partie Cassandra (événements utilisateurs + journal d'activité).
-// Le catalogue et les utilisateurs viennent normalement de MongoDB (autre membre du groupe) :
-// en attendant, on lit imports/songs.csv et imports/users.csv comme source de remplacement.
+﻿require('dotenv').config();
 
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const cors = require('cors');
 const { Client, types } = require('cassandra-driver');
 const { parse } = require('csv-parse/sync');
+const { router: mediaRoutes, MEDIA_DIR } = require('./src/routes/mediaRoutes');
+const { router: artistRoutes } = require('./src/routes/artistRoutes');
 
-const PORT = process.env.PORT || 3001;
+const app = express();
+const PORT = Number(process.env.PORT || 3001);
 const IMPORTS_DIR = process.env.IMPORTS_DIR || path.join(__dirname, '..', 'imports');
 
+app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
+app.use(express.json());
+app.use('/api/media-files', express.static(MEDIA_DIR));
+app.use('/api/media', mediaRoutes);
+app.use('/api/artists', artistRoutes);
+
+app.get('/', (req, res) => {
+  res.json({ message: 'SoundHub API is running' });
+});
+
 const client = new Client({
-  contactPoints: [process.env.CASSANDRA_HOST || '127.0.0.1:9042'],
-  localDataCenter: process.env.CASSANDRA_DC || 'datacenter1',
-  keyspace: 'soundhub',
+  contactPoints: (process.env.CASSANDRA_CONTACT_POINTS || process.env.CASSANDRA_HOST || '127.0.0.1').split(','),
+  protocolOptions: {
+    port: Number(process.env.CASSANDRA_PORT || 9042),
+  },
+  localDataCenter: process.env.CASSANDRA_LOCAL_DATACENTER || process.env.CASSANDRA_DC || 'datacenter1',
+  keyspace: process.env.CASSANDRA_KEYSPACE || 'soundhub',
 });
 
 // Connexion paresseuse : l'API démarre même si Cassandra n'est pas encore prête.
@@ -94,9 +109,6 @@ function mapEvent(r) {
     device: r.device,
   };
 }
-
-const app = express();
-app.use(express.json());
 
 app.get('/api/health', asyncH(async (req, res) => {
   const c = await db();

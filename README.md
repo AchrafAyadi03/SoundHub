@@ -33,6 +33,15 @@ cd api && npm install && npm start       # http://localhost:3001/api/health
 cd front && npm install && npm run dev   # http://localhost:5173
 ```
 
+### Sources audio locales
+
+Le lecteur `TrackPlayer` interroge automatiquement `/api/media/:songId`. Pour
+associer un fichier local à une chanson, placez-le dans `api/media/` puis ajoutez
+son nom dans `api/media/index.json` avec son `song_id` Spotify. Le serveur expose
+ces fichiers sous `/api/media-files`. Sans fichier, le lecteur utilise l’embed
+Spotify lorsque l’identifiant est valide.
+
+
 ## Modèle Cassandra (une table par requête)
 
 | Table | Clé de partition | Clustering | Usage |

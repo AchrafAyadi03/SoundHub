@@ -1,8 +1,33 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Disc3, ListMusic, Play, Plus, SkipForward } from 'lucide-react';
 import { api } from '../api.js';
 import { useFetch, useDebounced } from '../hooks.js';
-import { Button, EmptyState, ErrorState, LoadingState, SongCover, Table, formatDuration, getRows } from '../components.jsx';
+import { Button, Card, EmptyState, ErrorState, LoadingState, SongCover, formatDuration, getRows } from '../components.jsx';
+
+const SongGridCard = memo(function SongGridCard({ song, queue, onEvent }) {
+  return (
+    <Card className="catalogue-card">
+      <div className="catalogue-card-cover">
+        <SongCover song={song} size="lg" />
+        <button className="catalogue-play" type="button" aria-label={`Écouter ${song.track_name}`} onClick={() => onEvent(song, 'play', queue)}>
+          <Play size={20} fill="currentColor" />
+        </button>
+      </div>
+      <div className="catalogue-card-meta">
+        <strong title={song.track_name}>{song.track_name || song.song_id}</strong>
+        <span title={song.artists}>{song.artists || 'Artiste inconnu'}</span>
+        <div className="catalogue-card-details">
+          <span>{song.track_genre || '—'}</span>
+          <span>{formatDuration(song.duration_ms)}</span>
+        </div>
+      </div>
+      <div className="catalogue-card-actions">
+        <Button className="icon-button" aria-label={`Passer ${song.track_name}`} onClick={() => onEvent(song, 'skip')}><SkipForward size={16} /></Button>
+        <Button className="icon-button" aria-label={`Ajouter ${song.track_name}`} onClick={() => onEvent(song, 'add')}><Plus size={17} /></Button>
+      </div>
+    </Card>
+  );
+});
 
 export default function Catalogue({ query, onQueryChange, onEvent }) {
   const [genre, setGenre] = useState('');
@@ -26,23 +51,11 @@ export default function Catalogue({ query, onQueryChange, onEvent }) {
       </section>
       {request.loading ? <LoadingState rows={6} /> : request.error ? <ErrorState message={request.error} onRetry={request.retry} /> : !filtered.length ? <EmptyState title={query || genre ? 'Aucun titre correspondant' : 'Catalogue vide'} description="Essayez une autre recherche ou un autre genre." /> : (
         <>
-          <Table>
-            <thead><tr><th className="number-col">N°</th><th>Titre et artiste</th><th className="album-col">Album</th><th>Genre</th><th>Durée</th><th className="actions-col">Actions</th></tr></thead>
-            <tbody>{filtered.map((song, index) => (
-              <tr key={song.song_id}>
-                <td className="row-number">{String(index + 1).padStart(2, '0')}</td>
-                <td><div className="table-song"><SongCover song={song} size="small" /><span className="song-cell"><strong>{song.track_name || song.song_id}</strong><span>{song.artists || 'Artiste inconnu'}</span></span></div></td>
-                <td className="muted album-col">{song.album_name || '—'}</td>
-                <td><span className="genre-label">{song.track_genre || '—'}</span></td>
-                <td className="muted">{formatDuration(song.duration_ms)}</td>
-                <td><div className="row-actions">
-                  <Button className="icon-button" aria-label={`Écouter ${song.track_name}`} onClick={() => onEvent(song, 'play')}><Play size={16} /></Button>
-                  <Button className="icon-button" aria-label={`Passer ${song.track_name}`} onClick={() => onEvent(song, 'skip')}><SkipForward size={16} /></Button>
-                  <Button className="icon-button" aria-label={`Ajouter ${song.track_name}`} onClick={() => onEvent(song, 'add')}><Plus size={17} /></Button>
-                </div></td>
-              </tr>
-            ))}</tbody>
-          </Table>
+          <div className="catalogue-grid" aria-label="Résultats du catalogue">
+            {filtered.map((song) => (
+              <SongGridCard key={song.song_id} song={song} queue={filtered} onEvent={onEvent} />
+            ))}
+          </div>
           {songs.length >= limit && <div className="load-more"><Button className="button-secondary" onClick={() => setLimit((value) => value + 30)}><ListMusic size={16} /> Charger plus</Button></div>}
         </>
       )}

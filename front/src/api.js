@@ -24,6 +24,7 @@ export const api = {
   songStats: (songId) => request(`/api/songs/${encodeURIComponent(songId)}/stats`),
   activity: (day, limit = 50) => request(`/api/activity${qs({ day, limit })}`),
   topSongs: (limit = 10) => request(`/api/stats/top${qs({ limit })}`),
+  artistImage: (name) => request(`/api/artists/image${qs({ name })}`),
   addEvent: (event) =>
     request('/api/events', {
       method: 'POST',

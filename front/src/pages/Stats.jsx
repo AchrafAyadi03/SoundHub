@@ -3,7 +3,7 @@ import { CirclePlus, Headphones, SkipForward, BarChart3 } from 'lucide-react';
 import { api } from '../api.js';
 import { useFetch } from '../hooks.js';
 import { DEFAULT_DAY } from '../config.js';
-import { Badge, EmptyState, ErrorState, LoadingState, Table, getRows } from '../components.jsx';
+import { Badge, EmptyState, ErrorState, LoadingState, SongCover, Table, getRows } from '../components.jsx';
 
 export default function Stats() {
   const top = useFetch(() => api.topSongs(10), []);
@@ -47,6 +47,7 @@ export default function Stats() {
                   const plays = Number(song.plays) || 0;
                   return <button key={song.song_id || index} className={`chart-row ${selected?.song_id === song.song_id ? 'chart-selected' : ''}`} onClick={() => setSelected(song)}>
                     <span className="chart-rank">{String(index + 1).padStart(2, '0')}</span>
+                    <SongCover song={song} size="sm" />
                     <span className="chart-label"><strong>{song.track_name || song.song_id}</strong><span>{song.artists || 'Artiste inconnu'}</span></span>
                     <span className="chart-track"><i style={{ width: `${Math.max(1, plays / max * 100)}%` }} /></span>
                     <strong className="chart-value">{plays.toLocaleString('fr-FR')}</strong>

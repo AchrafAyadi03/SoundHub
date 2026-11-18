@@ -1,10 +1,14 @@
 import { useCallback, useState } from 'react';
 import {
   Activity as ActivityIcon, BarChart3, Disc3, Headphones, History as HistoryIcon,
-  Home, Library, Menu, Play, Plus, Search, SkipForward, X,
+  Home, Library, Menu, Search, X,
 } from 'lucide-react';
 import { api } from './api.js';
-import { Avatar, Button, SongCover, Toast, formatDuration } from './components.jsx';
+import { Avatar, Button, Toast } from './components.jsx';
+import { PlayerProvider, usePlayer } from './context/PlayerContext.jsx';
+import PlayerBar from './components/PlayerBar.jsx';
+import NowPlaying from './components/NowPlaying.jsx';
+import QueuePanel from './components/QueuePanel.jsx';
 import Activity from './pages/Activity.jsx';
 import Catalogue from './pages/Catalogue.jsx';
 import History from './pages/History.jsx';
@@ -19,41 +23,39 @@ const NAV_ITEMS = [
   { id: 'stats', label: 'Statistiques', icon: BarChart3 },
 ];
 
-export default function App() {
-  const [page, setPage] = useState('home');
-  const [userId, setUserId] = useState('U00001');
-  const [search, setSearch] = useState('');
-  const [playerSong, setPlayerSong] = useState(null);
-  const [toast, setToast] = useState(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+function AppShell({ userId, setUserId, search, setSearch, page, setPage, menuOpen, setMenuOpen, toast, setToast, notify }) {
+  const player = usePlayer();
 
-  const notify = useCallback((message, tone = 'success') => {
-    setToast({ message, tone, key: Date.now() });
-  }, []);
-
-  const recordEvent = useCallback(async (song, eventType) => {
+  const recordEvent = useCallback(async (song, eventType, queue) => {
     const activeUser = userId.trim();
     if (!activeUser) {
       notify('Renseignez un identifiant utilisateur.', 'error');
       return;
     }
+    if (eventType === 'play') {
+      player.playSong(song, queue);
+      return;
+    }
     try {
       await api.addEvent({
         user_id: activeUser,
-        song_id: song.song_id,
+        song_id: song.song_id || song.id,
         event_type: eventType,
         duration_listened_ms: eventType === 'play' ? (song.duration_ms || 0) : eventType === 'skip' ? 15000 : 0,
         device: 'web',
       });
-      if (eventType === 'play') setPlayerSong(song);
       const labels = { play: 'Écoute enregistrée', skip: 'Passage enregistré', add: 'Ajout enregistré' };
       notify(`${labels[eventType]} · ${song.track_name || song.song_id}`);
+      return true;
     } catch (error) {
       notify(`Impossible d’enregistrer l’événement : ${error.message}`, 'error');
+      return false;
     }
   }, [notify, userId]);
 
   const goTo = (id) => {
+    const labels = { catalogue: 'Catalogue', history: 'Historique', activity: 'Activité', stats: 'Top', home: 'Accueil' };
+    player.setContextLabel(labels[id] || 'Catalogue');
     setPage(id);
     setMenuOpen(false);
   };
@@ -63,7 +65,7 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${player.nowPlayingOpen ? 'app-shell-player-open' : ''}`}>
       <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`} aria-label="Navigation principale">
         <a className="brand" href="#accueil" onClick={(event) => { event.preventDefault(); goTo('home'); }}>
           <span className="brand-mark"><Disc3 size={21} /></span>
@@ -118,26 +120,38 @@ export default function App() {
         ))}
       </nav>
 
-      <footer className="player-bar" aria-label="Lecteur de musique">
-        <div className="player-track">
-          {playerSong ? <SongCover song={playerSong} size="small" /> : <span className="player-empty"><Disc3 size={20} /></span>}
-          <div className="player-meta">
-            <strong>{playerSong?.track_name || 'Aucune lecture en cours'}</strong>
-            <span>{playerSong?.artists || 'Choisissez un titre pour commencer'}</span>
-          </div>
-        </div>
-        <div className="player-center">
-          <div className="player-controls">
-            <Button className="icon-button" disabled={!playerSong} aria-label="Passer ce titre" onClick={() => playerSong && recordEvent(playerSong, 'skip')}><SkipForward size={18} /></Button>
-            <Button className="play-button" disabled={!playerSong} aria-label="Enregistrer une écoute" onClick={() => playerSong && recordEvent(playerSong, 'play')}><Play size={16} fill="currentColor" /></Button>
-            <Button className="icon-button" disabled={!playerSong} aria-label="Ajouter ce titre" onClick={() => playerSong && recordEvent(playerSong, 'add')}><Plus size={19} /></Button>
-          </div>
-          <div className="progress-line"><span /></div>
-          <div className="player-times"><span>00:00</span><span>{formatDuration(playerSong?.duration_ms)}</span></div>
-        </div>
-        <div className="player-status"><span className="live-dot" /> Lecture simulée</div>
-      </footer>
+      <PlayerBar onAdd={(song) => recordEvent(song, 'add')} />
+      <NowPlaying onAdd={(song) => recordEvent(song, 'add')} />
+      {player.queueOpen && <aside className="queue-float"><QueuePanel onClose={() => player.setQueueOpen(false)} /></aside>}
       {toast && <Toast key={toast.key} message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
     </div>
+  );
+}
+
+export default function App() {
+  const [page, setPage] = useState('home');
+  const [userId, setUserId] = useState('U00001');
+  const [search, setSearch] = useState('');
+  const [toast, setToast] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const notify = useCallback((message, tone = 'success') => {
+    setToast({ message, tone, key: Date.now() });
+  }, []);
+  return (
+    <PlayerProvider userId={userId} notify={notify}>
+      <AppShell
+        userId={userId}
+        setUserId={setUserId}
+        search={search}
+        setSearch={setSearch}
+        page={page}
+        setPage={setPage}
+        menuOpen={menuOpen}
+        setMenuOpen={setMenuOpen}
+        toast={toast}
+        setToast={setToast}
+        notify={notify}
+      />
+    </PlayerProvider>
   );
 }

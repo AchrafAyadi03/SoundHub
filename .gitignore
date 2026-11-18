@@ -3,3 +3,6 @@ dist/
 imports/
 dataset.csv
 __pycache__/
+.env
+api/.env
+front/.env
