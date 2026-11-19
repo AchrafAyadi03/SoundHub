@@ -6,7 +6,7 @@ const path = require('path');
 const cors = require('cors');
 const { Client, types } = require('cassandra-driver');
 const { parse } = require('csv-parse/sync');
-const { router: mediaRoutes, MEDIA_DIR } = require('./src/routes/mediaRoutes');
+const { createMediaRouter, MEDIA_DIR } = require('./src/routes/mediaRoutes');
 const { router: artistRoutes } = require('./src/routes/artistRoutes');
 
 const app = express();
@@ -16,7 +16,6 @@ const IMPORTS_DIR = process.env.IMPORTS_DIR || path.join(__dirname, '..', 'impor
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
 app.use(express.json());
 app.use('/api/media-files', express.static(MEDIA_DIR));
-app.use('/api/media', mediaRoutes);
 app.use('/api/artists', artistRoutes);
 
 app.get('/', (req, res) => {
@@ -54,31 +53,118 @@ const bad = (res, msg) => res.status(400).json({ error: msg });
 
 // ---------- Données de remplacement (CSV) ----------
 let songsCache = null;
-function getSongs() {
-  if (!songsCache) {
-    try {
-      const rows = parse(fs.readFileSync(path.join(IMPORTS_DIR, 'songs.csv')), {
-        columns: true,
-        skip_empty_lines: true,
-      });
-      const list = rows
-        .map((r) => ({
-          song_id: r.song_id,
-          track_name: r.track_name,
-          artists: r.artists,
-          album_name: r.album_name,
-          track_genre: r.track_genre,
-          popularity: Number(r.popularity) || 0,
-          duration_ms: Number(r.duration_ms) || 0,
-        }))
-        .sort((a, b) => b.popularity - a.popularity);
-      songsCache = { list, byId: new Map(list.map((s) => [s.song_id, s])) };
-    } catch {
-      return { list: [], byId: new Map() }; // pas mis en cache : réessaie après génération des CSV
+const emptySongs = { list: [], byId: new Map() };
+const SONGS_FILE = path.join(IMPORTS_DIR, 'songs.csv');
+const TRACKS_FILE = path.join(IMPORTS_DIR, 'tracks.csv');
+
+function firstValue(...values) {
+  return values.find((value) => value != null && String(value).trim() !== '');
+}
+
+function durationInMs(value) {
+  const text = String(value || '').trim();
+  if (!text) return 0;
+  if (text.includes(':')) {
+    const parts = text.split(':').map(Number);
+    if (parts.every(Number.isFinite)) {
+      return Math.round(parts.reduce((total, part) => total * 60 + part, 0) * 1000);
     }
+    return 0;
+  }
+  const duration = Number(text);
+  if (!Number.isFinite(duration) || duration <= 0) return 0;
+  return Math.round(duration >= 10000 ? duration : duration * 1000);
+}
+
+function optionalNumber(value) {
+  if (value == null || String(value).trim() === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function csvList(value) {
+  const text = String(value || '').trim();
+  if (text.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((item) => typeof item === 'string' || typeof item === 'number')
+          .map((item) => String(item).trim())
+          .filter(Boolean)
+          .join(';');
+      }
+    } catch {
+      // Keep the original value when a dataset contains a non-JSON list.
+    }
+  }
+  return text;
+}
+
+function fileSignature(filePath) {
+  try {
+    const stat = fs.statSync(filePath);
+    return { mtimeMs: stat.mtimeMs, size: stat.size };
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function normalizeSongRow(r) {
+  const artists = csvList(firstValue(r.artist, r.artists, r.artist_names));
+  return {
+    song_id: firstValue(r.id, r.song_id, r.track_id),
+    track_name: firstValue(r.track_name, r.title) || '',
+    artists: [artists, csvList(r.featuring)].filter(Boolean).join(';'),
+    album_name: firstValue(r.album_name, r.album) || '',
+    track_genre: csvList(firstValue(r.track_genre, r.genres)).split(';')[0] || '',
+    popularity: Number(r.popularity) || 0,
+    duration_ms: durationInMs(firstValue(r.duration_ms, r.duration)),
+    year: optionalNumber(r.year),
+    mood: r.mood || '',
+    energy: optionalNumber(r.energy),
+    warmth: optionalNumber(r.warmth),
+    tempo: optionalNumber(r.tempo),
+    lrclib_id: firstValue(r.lrclibId, r.lrclib_id) || null,
+    has_synced_lyrics: String(firstValue(r.hasSyncedLyrics, r.has_synced_lyrics) || '').toLowerCase() === 'true',
+    audio_src: firstValue(r.audioSrc, r.audio_src) || '',
+    cover: r.cover || '',
+    data_status: r.status || '',
+  };
+}
+
+function getSongs() {
+  const signature = JSON.stringify([fileSignature(SONGS_FILE), fileSignature(TRACKS_FILE)]);
+  if (songsCache && songsCache.signature === signature) return songsCache;
+
+  try {
+    const curatedRows = fileSignature(TRACKS_FILE)
+      ? parse(fs.readFileSync(TRACKS_FILE), { columns: true, skip_empty_lines: true })
+      : [];
+    const catalogRows = fileSignature(SONGS_FILE)
+      ? parse(fs.readFileSync(SONGS_FILE), { columns: true, skip_empty_lines: true })
+      : [];
+    const curated = curatedRows.map(normalizeSongRow).filter((song) => song.song_id);
+    const catalog = catalogRows
+      .map(normalizeSongRow)
+      .filter((song) => song.song_id)
+      .sort((a, b) => b.popularity - a.popularity);
+    const ids = new Set();
+    const list = [...curated, ...catalog].filter((song) => {
+      if (ids.has(song.song_id)) return false;
+      ids.add(song.song_id);
+      return true;
+    });
+    songsCache = { list, byId: new Map(list.map((song) => [song.song_id, song])), signature };
+  } catch (error) {
+    console.error(`Impossible de charger le catalogue: ${error.message}`);
+    return songsCache || emptySongs;
   }
   return songsCache;
 }
+
+app.use('/api/media', createMediaRouter((songId) => getSongs().byId.get(songId)));
 
 let usersCache = null;
 function getUsers() {
@@ -121,7 +207,7 @@ app.get('/api/songs', (req, res) => {
   const q = String(req.query.q || '').toLowerCase().trim();
   const limit = limitOf(req.query.limit, 30);
   let list = getSongs().list;
-  if (q) list = list.filter((s) => `${s.track_name} ${s.artists}`.toLowerCase().includes(q));
+  if (q) list = list.filter((song) => `${song.track_name} ${song.artists} ${song.album_name} ${song.mood}`.toLowerCase().includes(q));
   res.json(list.slice(0, limit));
 });
 

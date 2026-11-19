@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Heart, ListMusic, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, X } from 'lucide-react';
+import { FileText, Heart, ListMusic, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, X } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext.jsx';
 import useCoverColor from '../hooks/useCoverColor.js';
 import { SongCover, formatArtists } from '../components.jsx';
+import NowPlayingLyrics from './NowPlayingLyrics.jsx';
 import ProgressBar from './ProgressBar.jsx';
 import VolumeControl from './VolumeControl.jsx';
 import QueuePanel from './QueuePanel.jsx';
@@ -11,19 +12,31 @@ import SpotifyEmbed from './SpotifyEmbed.jsx';
 export default function NowPlaying({ onAdd }) {
   const player = usePlayer();
   const song = player.current;
+  const category = song?.track_genre || song?.mood;
   const coverUrl = player.media?.cover_url;
   const accent = useCoverColor(song?.song_id || song?.id, coverUrl);
   const [addStatus, setAddStatus] = useState('idle');
   const [favorite, setFavorite] = useState(false);
-  const [queueExpanded, setQueueExpanded] = useState(false);
+  const [activePanel, setActivePanel] = useState('lyrics');
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   useEffect(() => { setAddStatus('idle'); setFavorite(false); }, [song?.song_id || song?.id]);
-  if (!player.nowPlayingOpen) return null;
   const spotify = player.media?.source === 'spotify';
+  const unavailable = player.unavailable;
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
+  const lyricsPosition = spotify ? player.spotifyPosition || 0 : player.position;
+  const canSeekLyrics = !spotify && player.media?.source === 'local' && !unavailable;
   const spotifyProgressAvailable = Number.isFinite(player.spotifyPosition)
     && player.spotifyPosition >= 0
     && Number.isFinite(player.spotifyDuration)
     && player.spotifyDuration > 0;
-  const unavailable = player.unavailable;
+  const toggleMobilePanel = (panel) => {
+    if (mobilePanelOpen && activePanel === panel) {
+      setMobilePanelOpen(false);
+      return;
+    }
+    setActivePanel(panel);
+    setMobilePanelOpen(true);
+  };
   const handleAdd = async () => {
     if (!song || addStatus === 'sending' || addStatus === 'added') return;
     setAddStatus('sending');
@@ -36,19 +49,36 @@ export default function NowPlaying({ onAdd }) {
   };
 
   return (
-    <section className="now-playing" style={{ '--now-accent': accent }} role="dialog" aria-modal="true" aria-label="En cours de lecture">
+    <section
+      className={`now-playing ${player.nowPlayingOpen ? 'is-open' : 'is-closed'}`}
+      style={{ '--now-accent': accent }}
+      role="dialog"
+      aria-modal={player.nowPlayingOpen ? 'true' : undefined}
+      aria-label="En cours de lecture"
+      aria-hidden={!player.nowPlayingOpen}
+      hidden={!player.nowPlayingOpen}
+    >
       <header className="now-playing-header">
         <span className="now-context">Lecture en cours · {player.contextLabel || 'Catalogue'}</span>
         <button
           type="button"
-          className="queue-mobile-toggle"
-          onClick={() => setQueueExpanded((value) => !value)}
-          aria-expanded={queueExpanded}
-          aria-label={queueExpanded ? 'Masquer la file d’attente' : `Afficher À suivre, ${player.queue.length} titres`}
+          className="lyrics-mobile-toggle"
+          onClick={() => toggleMobilePanel('lyrics')}
+          aria-expanded={mobilePanelOpen && activePanel === 'lyrics'}
+          aria-label={mobilePanelOpen && activePanel === 'lyrics' ? 'Masquer les paroles' : 'Afficher les paroles'}
         >
-          <ListMusic size={18} /><span>À suivre</span>
+          <FileText size={17} /><span>Paroles</span>
         </button>
-        <button type="button" onClick={() => player.setNowPlayingOpen(false)} aria-label="Fermer la vue en cours de lecture"><X size={20} /></button>
+        <button
+          type="button"
+          className="queue-mobile-toggle"
+          onClick={() => toggleMobilePanel('queue')}
+          aria-expanded={mobilePanelOpen && activePanel === 'queue'}
+          aria-label={mobilePanelOpen && activePanel === 'queue' ? 'Masquer la file d’attente' : `Afficher À suivre, ${player.queue.length} titres`}
+        >
+          <ListMusic size={17} /><span>À suivre</span>
+        </button>
+        <button type="button" onClick={() => { setMobilePanelOpen(false); player.setNowPlayingOpen(false); }} aria-label="Fermer la vue en cours de lecture"><X size={20} /></button>
       </header>
       <div className="now-playing-body">
         <div className="now-playing-main">
@@ -62,7 +92,7 @@ export default function NowPlaying({ onAdd }) {
               )}
             </div>
             <div className="now-playing-meta">
-              {song?.track_genre && <span className="genre-badge">{song.track_genre}</span>}
+              {category && <span className="genre-badge">{category}</span>}
               <h2>{song?.track_name || song?.title || 'Titre indisponible'}</h2>
               <p>{formatArtists(song?.artists || song?.artist) || 'Artiste inconnu'}</p>
               {song?.album_name && <span className="now-album">{song.album_name}</span>}
@@ -118,7 +148,41 @@ export default function NowPlaying({ onAdd }) {
             )}
           </div>
         </div>
-        <QueuePanel onClose={() => setQueueExpanded(false)} mobileOpen={queueExpanded} />
+        <aside className={`now-playing-panel ${mobilePanelOpen ? 'mobile-panel-open' : ''}`} aria-label="Paroles et file d’attente">
+          <div className="now-panel-tabs" role="tablist" aria-label="Contenu du lecteur">
+            <button type="button" role="tab" id="now-tab-lyrics" aria-selected={activePanel === 'lyrics'} aria-controls="now-panel-lyrics" onClick={() => setActivePanel('lyrics')}>Paroles</button>
+            <button type="button" role="tab" id="now-tab-queue" aria-selected={activePanel === 'queue'} aria-controls="now-panel-queue" onClick={() => setActivePanel('queue')}>À suivre</button>
+          </div>
+          <section
+            id="now-panel-lyrics"
+            className="now-panel-view now-panel-lyrics"
+            role="tabpanel"
+            aria-labelledby="now-tab-lyrics"
+            hidden={activePanel !== 'lyrics'}
+          >
+            <header className="now-panel-heading">
+              <div><h3>Paroles</h3><p>{song?.track_name || song?.title || 'Lecture en cours'}</p></div>
+              <span className="lyrics-sync-indicator">{player.mediaLoading ? 'Chargement…' : 'Synchronisées'}</span>
+            </header>
+            <NowPlayingLyrics
+              song={song}
+              position={lyricsPosition}
+              onSeek={canSeekLyrics ? player.seek : undefined}
+              visible={activePanel === 'lyrics' && (!isMobile || mobilePanelOpen)}
+            />
+          </section>
+          <div
+            id="now-panel-queue"
+            className="now-panel-view now-panel-queue"
+            role="tabpanel"
+            aria-labelledby="now-tab-queue"
+            hidden={activePanel !== 'queue'}
+          >
+            {activePanel === 'queue' && (
+              <QueuePanel onClose={() => setMobilePanelOpen(false)} mobileOpen={mobilePanelOpen && activePanel === 'queue'} />
+            )}
+          </div>
+        </aside>
       </div>
       <p className="sr-only" aria-live="polite">{song ? `Lecture en cours : ${song.track_name || song.title} par ${formatArtists(song.artists || song.artist)}` : ''}</p>
     </section>

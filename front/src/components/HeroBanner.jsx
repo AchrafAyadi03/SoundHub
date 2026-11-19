@@ -99,7 +99,7 @@ function HeroSlide({ song, imageData, onEvent, queue, inactive = false }) {
         <span className="hero-kicker">{label}</span>
         <h1>{song.track_name || song.song_id || 'Titre à la une'}</h1>
         <p className="hero-artists">{formatArtists(song.artists) || 'Artiste inconnu'}</p>
-        <span className="hero-genre">{song.track_genre || imageData?.genre || 'Genre non renseigné'}</span>
+        <span className="hero-genre">{song.track_genre || song.mood || imageData?.genre || 'Genre non renseigné'}</span>
         <div className="hero-actions">
           <Button className="button-primary" disabled={inactive} tabIndex={inactive ? -1 : undefined} onClick={() => onEvent(song, 'play', queue)}>
             <Play size={16} fill="currentColor" /> Écouter

@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 import { ArrowRight, Play, TrendingUp } from 'lucide-react';
 import { api } from '../api.js';
 import { useFetch } from '../hooks.js';
-import { Button, Card, EmptyState, ErrorState, LoadingState, SongCover, getRows } from '../components.jsx';
+import { Button, Card, EmptyState, ErrorState, LoadingState, SongCover, formatArtists, getRows } from '../components.jsx';
 import HeroBanner from '../components/HeroBanner.jsx';
 
 const SongCard = memo(function SongCard({ song, index, onEvent, queue }) {
@@ -15,7 +15,7 @@ const SongCard = memo(function SongCard({ song, index, onEvent, queue }) {
       <div className="song-card-meta">
         <span className="song-rank">{String(index + 1).padStart(2, '0')}</span>
         <strong title={song.track_name}>{song.track_name || song.song_id}</strong>
-        <span>{song.artists || 'Artiste inconnu'}</span>
+        <span>{formatArtists(song.artists) || 'Artiste inconnu'}</span>
       </div>
       <button className="song-card-add" aria-label={`Ajouter ${song.track_name || 'ce titre'}`} onClick={() => onEvent(song, 'add')}>+</button>
     </Card>

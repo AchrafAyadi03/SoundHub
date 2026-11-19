@@ -41,6 +41,11 @@ son nom dans `api/media/index.json` avec son `song_id` Spotify. Le serveur expos
 ces fichiers sous `/api/media-files`. Sans fichier, le lecteur utilise l’embed
 Spotify lorsque l’identifiant est valide.
 
+Les titres de `imports/tracks.csv` sont ajoutés en tête du catalogue. Les colonnes
+`audioSrc` et `cover` sont utilisées par `/api/media/:songId` lorsqu’elles sont
+renseignées ; sans source audio (ou entrée dans `api/media/index.json`), le titre
+reste visible et recherchable mais ne peut pas être lu.
+
 
 ## Modèle Cassandra (une table par requête)
 
@@ -65,6 +70,8 @@ Un événement est écrit dans les 4 premières tables (dénormalisation propre 
 | GET | `/api/activity?day=YYYY-MM-DD` | journal d'activité d'un jour |
 | GET | `/api/stats/top?limit=10` | top chansons (parcours de `song_stats`) |
 | GET | `/api/songs?q=`, `/api/users?q=` | **remplacement temporaire de MongoDB** (lit `imports/*.csv`) |
+
+`/api/songs` fusionne `imports/tracks.csv` et `imports/songs.csv`, accepte les variantes de colonnes des deux fichiers (listes d’artistes JSON incluses) et recharge le catalogue lorsque l’un des fichiers change.
 
 ## Pages du front
 

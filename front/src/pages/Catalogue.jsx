@@ -2,7 +2,7 @@ import { memo, useMemo, useState } from 'react';
 import { Disc3, ListMusic, Play, Plus, SkipForward } from 'lucide-react';
 import { api } from '../api.js';
 import { useFetch, useDebounced } from '../hooks.js';
-import { Button, Card, EmptyState, ErrorState, LoadingState, SongCover, formatDuration, getRows } from '../components.jsx';
+import { Button, Card, EmptyState, ErrorState, LoadingState, SongCover, formatArtists, formatDuration, getRows } from '../components.jsx';
 
 const SongGridCard = memo(function SongGridCard({ song, queue, onEvent }) {
   return (
@@ -15,9 +15,9 @@ const SongGridCard = memo(function SongGridCard({ song, queue, onEvent }) {
       </div>
       <div className="catalogue-card-meta">
         <strong title={song.track_name}>{song.track_name || song.song_id}</strong>
-        <span title={song.artists}>{song.artists || 'Artiste inconnu'}</span>
+        <span title={formatArtists(song.artists)}>{formatArtists(song.artists) || 'Artiste inconnu'}</span>
         <div className="catalogue-card-details">
-          <span>{song.track_genre || '—'}</span>
+          <span>{song.track_genre || song.mood || '—'}</span>
           <span>{formatDuration(song.duration_ms)}</span>
         </div>
       </div>
@@ -35,8 +35,11 @@ export default function Catalogue({ query, onQueryChange, onEvent }) {
   const debouncedQuery = useDebounced(query, 300);
   const request = useFetch(() => api.songs(debouncedQuery, limit), [debouncedQuery, limit]);
   const songs = getRows(request.data);
-  const genres = useMemo(() => [...new Set(songs.map((song) => song.track_genre).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [songs]);
-  const filtered = genre ? songs.filter((song) => song.track_genre === genre) : songs;
+  const genres = useMemo(
+    () => [...new Set(songs.map((song) => song.track_genre || song.mood).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [songs],
+  );
+  const filtered = genre ? songs.filter((song) => (song.track_genre || song.mood) === genre) : songs;
 
   return (
     <div className="page-stack">
@@ -46,7 +49,7 @@ export default function Catalogue({ query, onQueryChange, onEvent }) {
       </div>
       <section className="filter-bar" aria-label="Filtres du catalogue">
         <label className="filter-search"><span>Recherche</span><input value={query} onChange={(event) => { onQueryChange(event.target.value); setLimit(30); }} placeholder="Titre ou artiste…" /></label>
-        <label><span>Genre</span><select value={genre} onChange={(event) => setGenre(event.target.value)}><option value="">Tous les genres</option>{genres.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+        <label><span>Genre / humeur</span><select value={genre} onChange={(event) => setGenre(event.target.value)}><option value="">Toutes les catégories</option>{genres.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
         <span className="result-count">{songs.length ? `${filtered.length} titre${filtered.length > 1 ? 's' : ''}` : ''}</span>
       </section>
       {request.loading ? <LoadingState rows={6} /> : request.error ? <ErrorState message={request.error} onRetry={request.retry} /> : !filtered.length ? <EmptyState title={query || genre ? 'Aucun titre correspondant' : 'Catalogue vide'} description="Essayez une autre recherche ou un autre genre." /> : (

@@ -42,30 +42,56 @@ async function spotifyCover(id) {
 
 const fileUrl = (name) => `/api/media-files/${encodeURIComponent(path.basename(name))}`;
 
-const router = express.Router();
-
-router.get('/:songId', async (req, res) => {
-  const id = req.params.songId;
-  if (!SONG_ID_RE.test(id)) return res.status(400).json({ error: 'song_id invalide' });
-
-  const isSpotify = SPOTIFY_ID_RE.test(id);
-  const entry = loadIndex()[id];
-
-  if (entry && entry.file && fs.existsSync(path.join(MEDIA_DIR, path.basename(entry.file)))) {
-    const cover = entry.cover ? fileUrl(entry.cover) : isSpotify ? await spotifyCover(id) : null;
-    return res.json({ song_id: id, source: 'local', audio_url: fileUrl(entry.file), cover_url: cover });
+function resolveAsset(value) {
+  const asset = String(value || '').trim();
+  if (!asset) return null;
+  try {
+    const url = new URL(asset);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return url.href;
+  } catch {
+    // Non-URL values are treated as filenames in the local media directory.
   }
+  const filename = path.basename(asset);
+  return filename && fs.existsSync(path.join(MEDIA_DIR, filename)) ? fileUrl(filename) : null;
+}
 
-  if (isSpotify) {
-    return res.json({
-      song_id: id,
-      source: 'spotify',
-      embed_url: `https://open.spotify.com/embed/track/${id}`,
-      cover_url: await spotifyCover(id),
-    });
-  }
+function createMediaRouter(getSongById) {
+  const router = express.Router();
 
-  res.json({ song_id: id, source: 'none' });
-});
+  router.get('/:songId', async (req, res) => {
+    const id = req.params.songId;
+    if (!SONG_ID_RE.test(id)) return res.status(400).json({ error: 'song_id invalide' });
 
-module.exports = { router, MEDIA_DIR };
+    const song = getSongById(id);
+    const trackCover = resolveAsset(song?.cover);
+    const trackAudio = resolveAsset(song?.audio_src);
+    const isSpotify = SPOTIFY_ID_RE.test(id);
+    const entry = loadIndex()[id];
+
+    if (entry && entry.file && fs.existsSync(path.join(MEDIA_DIR, path.basename(entry.file)))) {
+      const cover = entry.cover
+        ? fileUrl(entry.cover)
+        : trackCover || (isSpotify ? await spotifyCover(id) : null);
+      return res.json({ song_id: id, source: 'local', audio_url: fileUrl(entry.file), cover_url: cover });
+    }
+
+    if (trackAudio) {
+      return res.json({ song_id: id, source: 'local', audio_url: trackAudio, cover_url: trackCover });
+    }
+
+    if (isSpotify) {
+      return res.json({
+        song_id: id,
+        source: 'spotify',
+        embed_url: `https://open.spotify.com/embed/track/${id}`,
+        cover_url: trackCover || await spotifyCover(id),
+      });
+    }
+
+    res.json({ song_id: id, source: 'none', cover_url: trackCover });
+  });
+
+  return router;
+}
+
+module.exports = { createMediaRouter, MEDIA_DIR };
