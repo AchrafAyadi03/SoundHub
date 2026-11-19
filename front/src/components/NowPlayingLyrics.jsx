@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { LoaderCircle, Music2 } from 'lucide-react';
+import { Music2 } from 'lucide-react';
 import { formatArtists } from '../components.jsx';
 import { fetchLyrics, parseLRC } from '../services/lyrics.js';
 
@@ -66,9 +66,15 @@ export default function NowPlayingLyrics({ song, position = 0, onSeek, visible =
 
   useEffect(() => {
     if (visible && currentLine >= 0) {
-      activeLineRef.current?.scrollIntoView({
+      const line = activeLineRef.current;
+      const list = line?.parentElement;
+      if (!line || !list) return;
+      const lineRect = line.getBoundingClientRect();
+      const listRect = list.getBoundingClientRect();
+      const target = list.scrollTop + lineRect.top - listRect.top - list.clientHeight / 2 + lineRect.height / 2;
+      list.scrollTo({
+        top: target,
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-        block: 'center',
       });
     }
   }, [currentLine, visible]);
@@ -98,7 +104,7 @@ export default function NowPlayingLyrics({ song, position = 0, onSeek, visible =
 
   if (entries.length) {
     return (
-      <div className="now-lyrics-list" aria-label={`Paroles de ${title}`}>
+      <div className="now-lyrics-list" aria-label={`Paroles de ${title}`} dir="auto">
         {entries.map((line, index) => (
           <button
             type="button"
@@ -109,6 +115,7 @@ export default function NowPlayingLyrics({ song, position = 0, onSeek, visible =
             disabled={!onSeek}
             aria-current={index === currentLine ? 'true' : undefined}
             aria-label={`Aller à ${Math.floor(line.time / 60)}:${String(Math.floor(line.time % 60)).padStart(2, '0')} — ${line.text}`}
+            dir="auto"
           >
             {line.text || '♪'}
           </button>
@@ -119,9 +126,9 @@ export default function NowPlayingLyrics({ song, position = 0, onSeek, visible =
 
   if (result.lyrics.plainLyrics) {
     return (
-      <div className="now-lyrics-list now-plain-lyrics" aria-label={`Paroles de ${title}`}>
+      <div className="now-lyrics-list now-plain-lyrics" aria-label={`Paroles de ${title}`} dir="auto">
         {result.lyrics.plainLyrics.split(/\r?\n/).filter(Boolean).map((line, index) => (
-          <p className="now-lyric-line" key={`${index}-${line}`}>{line}</p>
+          <p className="now-lyric-line" dir="auto" key={`${index}-${line}`}>{line}</p>
         ))}
       </div>
     );
