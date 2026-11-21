@@ -104,31 +104,49 @@ export default function NowPlayingLyrics({ song, position = 0, onSeek, visible =
 
   if (entries.length) {
     return (
-      <div className="now-lyrics-list" aria-label={`Paroles de ${title}`} dir="auto">
-        {entries.map((line, index) => (
-          <button
-            type="button"
-            className={`now-lyric-line ${index === currentLine ? 'is-current' : Math.abs(index - currentLine) === 1 ? 'is-nearby' : 'is-distant'}`}
-            key={`${line.time}-${index}`}
-            ref={index === currentLine ? activeLineRef : null}
-            onClick={() => onSeek?.(line.time)}
-            disabled={!onSeek}
-            aria-current={index === currentLine ? 'true' : undefined}
-            aria-label={`Aller à ${Math.floor(line.time / 60)}:${String(Math.floor(line.time % 60)).padStart(2, '0')} — ${line.text}`}
-            dir="auto"
-          >
-            {line.text || '♪'}
-          </button>
-        ))}
+      <div
+        className="now-lyrics-list [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]"
+        aria-label={`Paroles de ${title}`}
+        dir="auto"
+      >
+        {entries.map((line, index) => {
+          const isCurrent = index === currentLine;
+          const isNearby = Math.abs(index - currentLine) === 1;
+          return (
+            <button
+              type="button"
+              className={`now-lyric-line block w-full border-0 bg-transparent px-2 py-2 text-left transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 ${
+                isCurrent
+                  ? 'is-current scale-105 text-2xl font-bold text-white'
+                  : isNearby
+                    ? 'is-nearby text-lg font-medium text-gray-400 opacity-80'
+                    : 'is-distant text-base text-gray-500 opacity-60'
+              } ${onSeek ? 'cursor-pointer' : 'cursor-default'}`}
+              key={`${line.time}-${index}`}
+              ref={isCurrent ? activeLineRef : null}
+              onClick={() => onSeek?.(line.time)}
+              disabled={!onSeek}
+              aria-current={isCurrent ? 'true' : undefined}
+              aria-label={`Aller à ${Math.floor(line.time / 60)}:${String(Math.floor(line.time % 60)).padStart(2, '0')} — ${line.text}`}
+              dir="auto"
+            >
+              {line.text || '♪'}
+            </button>
+          );
+        })}
       </div>
     );
   }
 
   if (result.lyrics.plainLyrics) {
     return (
-      <div className="now-lyrics-list now-plain-lyrics" aria-label={`Paroles de ${title}`} dir="auto">
+      <div
+        className="now-lyrics-list now-plain-lyrics [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]"
+        aria-label={`Paroles de ${title}`}
+        dir="auto"
+      >
         {result.lyrics.plainLyrics.split(/\r?\n/).filter(Boolean).map((line, index) => (
-          <p className="now-lyric-line" dir="auto" key={`${index}-${line}`}>{line}</p>
+          <p className="now-lyric-line py-2 text-base text-gray-500 opacity-60" dir="auto" key={`${index}-${line}`}>{line}</p>
         ))}
       </div>
     );

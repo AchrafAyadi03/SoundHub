@@ -112,16 +112,16 @@ function fileSignature(filePath) {
 }
 
 function normalizeSongRow(r) {
-  const artists = csvList(firstValue(r.artist, r.artists, r.artist_names));
+  const artists = csvList(firstValue(r.artist, r.artist_name, r.artists, r.artist_names));
   return {
     song_id: firstValue(r.id, r.song_id, r.track_id),
-    track_name: firstValue(r.track_name, r.title) || '',
+    track_name: firstValue(r.track_name, r.title, r.name) || '',
     artists: [artists, csvList(r.featuring)].filter(Boolean).join(';'),
     album_name: firstValue(r.album_name, r.album) || '',
-    track_genre: csvList(firstValue(r.track_genre, r.genres)).split(';')[0] || '',
+    track_genre: csvList(firstValue(r.track_genre, r.genre, r.genres)).split(';')[0] || '',
     popularity: Number(r.popularity) || 0,
     duration_ms: durationInMs(firstValue(r.duration_ms, r.duration)),
-    year: optionalNumber(r.year),
+    year: optionalNumber(firstValue(r.year, r.release_year)),
     mood: r.mood || '',
     energy: optionalNumber(r.energy),
     warmth: optionalNumber(r.warmth),

@@ -89,7 +89,12 @@ export default function QueuePanel({ onClose, mobileOpen = false }) {
         </div>
         <div className="queue-heading-actions">
           <Rating value={player.current?.rating} />
-          <button type="button" className="queue-close" onClick={onClose} aria-label="Fermer la file d’attente">
+          <button
+            type="button"
+            className="queue-close inline-flex h-9 w-9 items-center justify-center rounded-full text-gray-300 transition-all duration-200 ease-in-out hover:bg-white/10 hover:text-white active:scale-95"
+            onClick={onClose}
+            aria-label="Fermer la file d’attente"
+          >
             <X size={18} />
           </button>
         </div>

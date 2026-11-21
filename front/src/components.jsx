@@ -22,7 +22,7 @@ export function Avatar({ name = '?' }) {
   return <span className="avatar" aria-hidden="true">{initials}</span>;
 }
 
-export function SongCover({ song, size = 'medium', className = '' }) {
+export function SongCover({ song, size = 'medium', fill = false, className = '' }) {
   const rootRef = useRef(null);
   const [visible, setVisible] = useState(false);
   const [media, setMedia] = useState(null);
@@ -63,7 +63,7 @@ export function SongCover({ song, size = 'medium', className = '' }) {
     <span
       ref={rootRef}
       className={`song-cover cover-${size} ${className} ${!media ? 'cover-loading' : ''}`}
-      style={{ width: dimensions, height: dimensions, '--cover-hue': fallback }}
+      style={fill ? { width: '100%', height: '100%', '--cover-hue': fallback } : { width: dimensions, height: dimensions, '--cover-hue': fallback }}
       role="img"
       aria-label={`Pochette de ${title}`}
     >

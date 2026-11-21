@@ -143,19 +143,27 @@ export function PlayerProvider({ children, userId, notify }) {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (!state.media || state.media.source !== 'local') return;
+    if (!state.media || state.media.source !== 'local') {
+      audio.pause();
+      if (!state.playing || !currentId) {
+        audio.removeAttribute('src');
+        audio.load();
+      }
+      return;
+    }
     if (audio.getAttribute('src') !== state.media.audio_url) {
       audio.src = state.media.audio_url;
       audio.load();
     }
-  }, [state.media, currentId]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || state.media?.source !== 'local') return;
-    if (state.playing && audio.paused) audio.play().catch(() => dispatch({ type: 'UNAVAILABLE' }));
-    else audio.pause();
-  }, [state.playing, state.media?.source]);
+    if (state.playing) {
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => dispatch({ type: 'UNAVAILABLE' }));
+      }
+    } else {
+      audio.pause();
+    }
+  }, [state.playing, state.media?.source, state.media?.audio_url, currentId]);
 
   const playSong = useCallback((song, queueOverride) => {
     const request = ++playRequestRef.current;
@@ -187,6 +195,8 @@ export function PlayerProvider({ children, userId, notify }) {
     if (manual && current && state.media?.source === 'spotify' && state.spotifyPosition > 0) {
       recordEvent(current, 'skip', Math.round(state.spotifyPosition * 1000));
     }
+    playStartedRef.current = false;
+    audioRef.current?.pause();
     if (state.shuffle) {
       const index = listRef.current.length > 1
         ? (state.currentIndex + 1 + Math.floor(Math.random() * (listRef.current.length - 1))) % listRef.current.length
@@ -205,6 +215,8 @@ export function PlayerProvider({ children, userId, notify }) {
       dispatch({ type: 'POSITION', value: 0 });
       return;
     }
+    playStartedRef.current = false;
+    audioRef.current?.pause();
     dispatch({ type: 'SET_INDEX', index: (state.currentIndex - 1 + listRef.current.length) % listRef.current.length });
     dispatch({ type: 'PLAYING', value: true });
   }, [state.currentIndex]);
@@ -242,14 +254,23 @@ export function PlayerProvider({ children, userId, notify }) {
   }, []);
 
   const handleEnded = useCallback(() => {
-    if (state.repeat === 'one' && audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play();
+    if (state.repeat === 'one') {
+      if (state.media?.source === 'local' && audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
+      } else if (state.media?.source === 'spotify') {
+        const controller = spotifyControllerRef.current;
+        if (typeof controller?.seek === 'function') {
+          controller.seek(0);
+          dispatch({ type: 'SPOTIFY_PROGRESS', position: 0, duration: state.spotifyDuration });
+        }
+        controller?.play?.();
+      }
       return;
     }
     if (state.repeat === 'all' || state.currentIndex < state.queue.length - 1) next(false);
     else dispatch({ type: 'PLAYING', value: false });
-  }, [next, state.repeat, state.currentIndex, state.queue.length]);
+  }, [next, state.repeat, state.currentIndex, state.queue.length, state.media?.source, state.spotifyDuration]);
 
   const handleError = useCallback(() => dispatch({ type: 'UNAVAILABLE' }), []);
   const handleLocalPlay = useCallback(() => {
@@ -330,11 +351,22 @@ export function PlayerProvider({ children, userId, notify }) {
     const position = toSeconds(update?.position);
     const duration = toSeconds(update?.duration);
     dispatch({ type: 'SPOTIFY_PROGRESS', position, duration });
-    if (update?.isPaused && position !== null && (
-      (duration !== null && duration - position <= 1)
-      || position >= 29
-    )) next();
-  }, [next]);
+    if (typeof update?.isPaused === 'boolean') {
+      dispatch({ type: 'PLAYING', value: !update.isPaused });
+    }
+  }, []);
+
+  const seekSpotify = useCallback((value) => {
+    const controller = spotifyControllerRef.current;
+    if (typeof controller?.seek !== 'function' || !Number.isFinite(value)) return;
+    const position = Math.max(0, Math.min(value, state.spotifyDuration || value));
+    controller.seek(Math.floor(position));
+    dispatch({
+      type: 'SPOTIFY_PROGRESS',
+      position,
+      duration: state.spotifyDuration,
+    });
+  }, [state.spotifyDuration]);
 
   const value = useMemo(() => ({
     ...state,
@@ -345,6 +377,7 @@ export function PlayerProvider({ children, userId, notify }) {
     next,
     previous,
     seek,
+    seekSpotify,
     handleTimeUpdate,
     handleEnded,
     handleError,
@@ -366,7 +399,7 @@ export function PlayerProvider({ children, userId, notify }) {
     setSpotifyBlocked: () => dispatch({ type: 'SPOTIFY_BLOCKED' }),
     setSpotifyController: (controller) => { spotifyControllerRef.current = controller; },
     toggleSpotify: () => spotifyControllerRef.current?.togglePlay(),
-  }), [state, current, playSong, togglePlay, next, previous, seek, handleTimeUpdate, handleEnded, handleError, handleLocalPlay, recordEvent, cancelUnavailable, onSpotifyStarted, onSpotifyUpdate]);
+  }), [state, current, playSong, togglePlay, next, previous, seek, seekSpotify, handleTimeUpdate, handleEnded, handleError, handleLocalPlay, recordEvent, cancelUnavailable, onSpotifyStarted, onSpotifyUpdate]);
 
   return (
     <PlayerContext.Provider value={value}>

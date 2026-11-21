@@ -1,0 +1,76 @@
+:root {
+  color-scheme: dark;
+
+  /* Fonds */
+  --color-bg: #0A0C0B;
+  --color-sidebar: #080A09;
+  --color-surface: #111513;
+  --color-surface-raised: #181D1A;
+  --color-surface-hover: #1E2420;
+
+  /* Bordures */
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+
+  /* Texte */
+  --color-text: #F5F7F5;
+  --color-muted: #8A948C;
+  --color-subtle: #5E6863;
+
+  /* Accents néon */
+  --color-accent: #7CFFCB;
+  --color-accent-strong: #4EE8AF;
+  --color-accent-ink: #0A1F16;
+  --color-accent-secondary: #B4A5FF;
+  --accent-glow: rgba(124, 255, 203, 0.35);
+
+  /* Statuts */
+  --color-danger: #F2A4A4;
+  --color-danger-bg: #351F20;
+  --color-success: #7CFFCB;
+
+  /* Rayons */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* Ombres */
+  --shadow-card: 0 12px 32px rgb(0 0 0 / 28%);
+  --shadow-glow: 0 0 40px -8px var(--accent-glow);
+
+  /* Espacements */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  --space-7: 40px; --space-8: 48px;
+
+  /* Polices */
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', var(--font-body);
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+/* Utilitaires globaux */
+.text-gradient {
+  background: linear-gradient(135deg, #7CFFCB 0%, #B4A5FF 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn-neon {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  box-shadow: 0 4px 24px -4px var(--accent-glow);
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.btn-neon:hover {
+  transform: translateY(-2px);
+  background: #93FFD6;
+  box-shadow: 0 8px 32px -4px var(--accent-glow);
+}
+.btn-neon:active { transform: translateY(0) scale(.97); }

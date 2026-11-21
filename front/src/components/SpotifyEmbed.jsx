@@ -24,11 +24,19 @@ function loadSpotifyApi() {
   return spotifyScriptPromise;
 }
 
+function getSpotifyUrl(uri) {
+  const match = /^spotify:(track|episode):([A-Za-z0-9]+)$/.exec(uri || '');
+  return match
+    ? `https://open.spotify.com/${match[1]}/${encodeURIComponent(match[2])}?theme=0`
+    : null;
+}
+
 export default function SpotifyEmbed({ uri, autoplayToken = 0, onController, onStarted, onUpdate, onEnded, onBlocked }) {
   const hostRef = useRef(null);
   const controllerRef = useRef(null);
   const startedRef = useRef(false);
   const blockedTimerRef = useRef(null);
+  const lastUpdateRef = useRef(null);
   const [blocked, setBlocked] = useState(false);
   const endedRef = useRef(false);
   const callbacksRef = useRef({ onController, onStarted, onUpdate, onEnded, onBlocked });
@@ -38,7 +46,8 @@ export default function SpotifyEmbed({ uri, autoplayToken = 0, onController, onS
     let disposed = false;
     loadSpotifyApi().then((api) => {
       if (disposed || !hostRef.current) return;
-      api.createController(hostRef.current, { uri, width: '100%', height: 80 }, (controller) => {
+      const url = getSpotifyUrl(uri);
+      api.createController(hostRef.current, { ...(url ? { url } : { uri }), width: '100%', height: 80 }, (controller) => {
         if (disposed) {
           controller.destroy?.();
           return;
@@ -48,6 +57,7 @@ export default function SpotifyEmbed({ uri, autoplayToken = 0, onController, onS
         controller.addListener('ready', () => {
           endedRef.current = false;
           startedRef.current = false;
+          lastUpdateRef.current = null;
           setBlocked(false);
           controller.play();
           clearTimeout(blockedTimerRef.current);
@@ -69,13 +79,18 @@ export default function SpotifyEmbed({ uri, autoplayToken = 0, onController, onS
           callbacksRef.current.onUpdate?.(data);
           const position = Number(data?.position);
           const duration = Number(data?.duration);
-          if (data?.isPaused && (
-            (Number.isFinite(duration) && Number.isFinite(position) && duration - position <= 1000)
-            || (Number.isFinite(position) && position >= 29000)
-          ) && !endedRef.current) {
+          const previousUpdate = lastUpdateRef.current;
+          if (data?.isPaused
+            && previousUpdate?.isPaused === false
+            && Number.isFinite(duration)
+            && duration > 0
+            && Number.isFinite(position)
+            && position >= duration - 500
+            && !endedRef.current) {
             endedRef.current = true;
             callbacksRef.current.onEnded?.();
           }
+          lastUpdateRef.current = data;
         });
       });
     }).catch(() => callbacksRef.current.onBlocked?.());
@@ -93,9 +108,10 @@ export default function SpotifyEmbed({ uri, autoplayToken = 0, onController, onS
     if (!controller || !uri) return;
     endedRef.current = false;
     startedRef.current = false;
+    lastUpdateRef.current = null;
     setBlocked(false);
     clearTimeout(blockedTimerRef.current);
-    controller.loadUri(uri);
+    controller.loadUri(uri, false, undefined, 'dark');
     controller.play();
     blockedTimerRef.current = setTimeout(() => {
       if (!startedRef.current) {

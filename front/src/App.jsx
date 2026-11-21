@@ -67,17 +67,29 @@ function AppShell({ userId, setUserId, search, setSearch, page, setPage, menuOpe
   return (
     <div className={`app-shell ${player.nowPlayingOpen ? 'app-shell-player-open' : ''}`}>
       <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`} aria-label="Navigation principale">
-        <a className="brand" href="#accueil" onClick={(event) => { event.preventDefault(); goTo('home'); }}>
+        <a
+          className="brand transition-opacity duration-200 ease-in-out hover:opacity-80"
+          href="#accueil"
+          onClick={(event) => { event.preventDefault(); goTo('home'); }}
+        >
           <span className="brand-mark"><Disc3 size={21} /></span>
           <span>Sound<span className="brand-accent">Hub</span><small>ESPACE MUSICAL</small></span>
         </a>
         <div className="nav-label">ESPACE</div>
         <nav className="side-nav">
-          {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
-            <button key={id} className={`nav-item ${page === id ? 'selected' : ''}`} onClick={() => goTo(id)} aria-current={page === id ? 'page' : undefined}>
-              <Icon size={18} strokeWidth={1.8} /><span>{label}</span>
-            </button>
-          ))}
+          {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
+            const selected = page === id;
+            return (
+              <button
+                key={id}
+                className={`nav-item relative overflow-hidden transition-all duration-200 ease-in-out hover:bg-white/5 ${selected ? "selected bg-white/5 text-accent before:absolute before:left-0 before:top-1/2 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-r before:bg-emerald-400 before:content-['']" : ''}`}
+                onClick={() => goTo(id)}
+                aria-current={selected ? 'page' : undefined}
+              >
+                <Icon size={18} strokeWidth={1.8} /><span>{label}</span>
+              </button>
+            );
+          })}
         </nav>
         <div className="sidebar-bottom">
           <div className="sidebar-note"><Headphones size={17} /><span>Votre musique,<br />vos découvertes.</span></div>
@@ -91,10 +103,16 @@ function AppShell({ userId, setUserId, search, setSearch, page, setPage, menuOpe
           <Button className="mobile-menu icon-button" aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'} onClick={() => setMenuOpen(!menuOpen)}>
             {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </Button>
-          <form className="global-search" role="search" onSubmit={submitSearch}>
-            <Search size={18} aria-hidden="true" />
-            <input aria-label="Rechercher dans le catalogue" placeholder="Rechercher un titre, un artiste…" value={search} onChange={(event) => setSearch(event.target.value)} />
-            <kbd>↵</kbd>
+          <form className="global-search flex h-12 items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 transition-all duration-200 ease-in-out focus-within:border-emerald-400/50 focus-within:ring-2 focus-within:ring-emerald-400/20" role="search" onSubmit={submitSearch}>
+            <Search size={18} aria-hidden="true" className="text-gray-400" />
+            <input
+              className="h-full w-full min-w-0 border-0 bg-transparent text-sm text-white placeholder:text-gray-500 outline-none focus:outline-none focus:ring-0"
+              aria-label="Rechercher dans le catalogue"
+              placeholder="Rechercher un titre, un artiste…"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <kbd className="hidden rounded border border-white/10 px-1.5 text-xs text-gray-400 sm:inline">↵</kbd>
           </form>
           <div className="user-selector">
             <Avatar name={userId} />

@@ -85,17 +85,17 @@ export default function NowPlaying({ onAdd, backgroundMode: initialBackgroundMod
       />
       <header className="now-playing-header">
         <span className="now-context">Lecture en cours · {player.contextLabel || 'Catalogue'}</span>
-        <div className="player-background-switch" role="group" aria-label="Fond du lecteur">
+        <div className="player-background-switch inline-flex items-center gap-1 rounded-full bg-white/5 p-1" role="group" aria-label="Fond du lecteur">
           <button
             type="button"
-            className={backgroundMode === 'cover' ? 'is-selected' : ''}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 ease-in-out active:scale-95 ${backgroundMode === 'cover' ? 'is-selected bg-white/10 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}
             onClick={() => setBackgroundMode('cover')}
             aria-pressed={backgroundMode === 'cover'}
             aria-label="Utiliser le fond coloré de la pochette"
           ><Image size={15} /><span>Pochette</span></button>
           <button
             type="button"
-            className={backgroundMode === 'video' ? 'is-selected' : ''}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 ease-in-out active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${backgroundMode === 'video' ? 'is-selected bg-white/10 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}
             onClick={() => setBackgroundMode('video')}
             disabled={!videoUrl}
             aria-pressed={backgroundMode === 'video'}
@@ -105,7 +105,7 @@ export default function NowPlaying({ onAdd, backgroundMode: initialBackgroundMod
         </div>
         <button
           type="button"
-          className="lyrics-mobile-toggle"
+          className="lyrics-mobile-toggle inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-2 text-sm text-gray-200 transition-all duration-200 ease-in-out hover:bg-white/10 active:scale-95"
           onClick={() => toggleMobilePanel('lyrics')}
           aria-expanded={mobilePanelOpen && activePanel === 'lyrics'}
           aria-label={mobilePanelOpen && activePanel === 'lyrics' ? 'Masquer les paroles' : 'Afficher les paroles'}
@@ -114,22 +114,34 @@ export default function NowPlaying({ onAdd, backgroundMode: initialBackgroundMod
         </button>
         <button
           type="button"
-          className="queue-mobile-toggle"
+          className="queue-mobile-toggle inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-2 text-sm text-gray-200 transition-all duration-200 ease-in-out hover:bg-white/10 active:scale-95"
           onClick={() => toggleMobilePanel('queue')}
           aria-expanded={mobilePanelOpen && activePanel === 'queue'}
           aria-label={mobilePanelOpen && activePanel === 'queue' ? 'Masquer la file d’attente' : `Afficher À suivre, ${player.queue.length} titres`}
         >
           <ListMusic size={17} /><span>À suivre</span>
         </button>
-        <button type="button" onClick={() => { setMobilePanelOpen(false); player.setNowPlayingOpen(false); }} aria-label="Fermer la vue en cours de lecture"><X size={20} /></button>
+        <button
+          type="button"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-gray-200 transition-all duration-200 ease-in-out hover:bg-white/10 hover:text-white active:scale-95"
+          onClick={() => { setMobilePanelOpen(false); player.setNowPlayingOpen(false); }}
+          aria-label="Fermer la vue en cours de lecture"
+        >
+          <X size={20} />
+        </button>
       </header>
       <div className="now-playing-body" ref={bodyRef}>
         <div className="now-playing-main">
           <div className="now-playing-left">
-            <div className="now-cover-wrap">
-              {song ? <SongCover song={song} size="lg" className="now-playing-cover" /> : <div className="now-empty-cover"><Play size={32} /></div>}
+            <div className="now-cover-wrap relative">
+              <div
+                className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full blur-[120px] opacity-30"
+                style={{ background: accent || '#6EE7B7' }}
+                aria-hidden="true"
+              />
+              {song ? <SongCover song={song} size="lg" className="now-playing-cover relative z-[1]" /> : <div className="now-empty-cover relative z-[1]"><Play size={32} /></div>}
               {song && (
-                <button type="button" className={`cover-favorite ${favorite ? 'is-favorite' : ''}`} onClick={() => setFavorite((value) => !value)} aria-label={favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'} aria-pressed={favorite}>
+                <button type="button" className={`cover-favorite z-[2] ${favorite ? 'is-favorite' : ''}`} onClick={() => setFavorite((value) => !value)} aria-label={favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'} aria-pressed={favorite}>
                   <Heart size={18} fill={favorite ? 'currentColor' : 'none'} />
                 </button>
               )}
@@ -148,7 +160,7 @@ export default function NowPlaying({ onAdd, backgroundMode: initialBackgroundMod
                 onController={player.setSpotifyController}
                 onStarted={player.onSpotifyStarted}
                 onUpdate={player.onSpotifyUpdate}
-                onEnded={player.next}
+                onEnded={() => player.next(false)}
                 onBlocked={player.setSpotifyBlocked}
               />
             )}
@@ -160,35 +172,47 @@ export default function NowPlaying({ onAdd, backgroundMode: initialBackgroundMod
             )}
 
             {spotify && spotifyProgressAvailable && (
-              <ProgressBar position={player.spotifyPosition} duration={player.spotifyDuration} disabled onSeek={() => {}} />
+              <ProgressBar position={player.spotifyPosition} duration={player.spotifyDuration} onSeek={player.seekSpotify} />
             )}
             {!spotify && player.media?.source === 'local' && (
               <ProgressBar position={player.position} duration={player.duration} disabled={!song || unavailable || player.media?.source !== 'local'} onSeek={player.seek} />
             )}
 
-            <div className="now-controls">
-              <button type="button" className={player.shuffle ? 'is-active' : ''} onClick={() => player.setShuffle(!player.shuffle)} aria-label="Lecture aléatoire"><Shuffle size={18} /></button>
-              <button type="button" onClick={player.previous} disabled={!song} aria-label="Titre précédent"><SkipBack size={22} /></button>
-              <button type="button" className="now-play" onClick={player.togglePlay} disabled={!song || unavailable} aria-label={player.playing ? 'Mettre en pause' : 'Lire'}>
+            <div className="now-controls flex items-center justify-center gap-3">
+              <button type="button" className={`inline-flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ease-in-out hover:bg-white/10 active:scale-95 ${player.shuffle ? 'is-active bg-white/10 text-accent' : 'text-gray-300 hover:text-white'}`} onClick={() => player.setShuffle(!player.shuffle)} aria-label="Lecture aléatoire"><Shuffle size={18} /></button>
+              <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-full text-gray-300 transition-all duration-200 ease-in-out hover:bg-white/10 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40" onClick={player.previous} disabled={!song} aria-label="Titre précédent"><SkipBack size={22} /></button>
+              <button type="button" className="now-play inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent text-[#0F0F0F] shadow-lg shadow-emerald-500/30 transition-all duration-200 ease-in-out hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40" onClick={player.togglePlay} disabled={!song || unavailable} aria-label={player.playing ? 'Mettre en pause' : 'Lire'}>
                 {player.playing ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
               </button>
-              <button type="button" onClick={player.next} disabled={!song} aria-label="Titre suivant"><SkipForward size={22} /></button>
-              <button type="button" className={player.repeat !== 'none' ? 'is-active' : ''} onClick={player.cycleRepeat} aria-label={`Répétition : ${player.repeat}`}>
+              <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-full text-gray-300 transition-all duration-200 ease-in-out hover:bg-white/10 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40" onClick={player.next} disabled={!song} aria-label="Titre suivant"><SkipForward size={22} /></button>
+              <button type="button" className={`inline-flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ease-in-out hover:bg-white/10 active:scale-95 ${player.repeat !== 'none' ? 'is-active bg-white/10 text-accent' : 'text-gray-300 hover:text-white'}`} onClick={player.cycleRepeat} aria-label={`Répétition : ${player.repeat}`}>
                 {player.repeat === 'one' ? <Repeat1 size={18} /> : <Repeat size={18} />}
               </button>
             </div>
+            {song && (
+              <button
+                type="button"
+                className={`now-add inline-flex h-11 items-center justify-center rounded-full px-6 text-sm font-semibold transition-all duration-200 ease-in-out active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${addStatus === 'added' ? 'now-added bg-white/10 text-accent' : 'bg-accent text-[#0F0F0F] shadow-lg shadow-emerald-500/25 hover:brightness-110'}`}
+                onClick={handleAdd}
+                disabled={addStatus === 'sending' || addStatus === 'added'}
+              >
+                {addStatus === 'sending' ? 'Ajout…' : addStatus === 'added' ? 'Ajouté ✓' : 'Ajouter'}
+              </button>
+            )}
             {unavailable && (
               <div className="unavailable-actions" role="status">
                 <strong>Titre indisponible</strong>
                 <button type="button" onClick={player.cancelUnavailable}>Annuler le passage automatique</button>
               </div>
             )}
-            {!spotify && player.media?.source === 'local' && <VolumeControl volume={player.volume} muted={player.muted} disabled={!song} onVolume={player.setVolume} onMuted={() => player.setMuted(!player.muted)} />}
-            {song && (
-              <button type="button" className={`now-add ${addStatus === 'added' ? 'now-added' : ''}`} onClick={handleAdd} disabled={addStatus === 'sending' || addStatus === 'added'}>
-                {addStatus === 'sending' ? 'Ajout…' : addStatus === 'added' ? 'Ajouté ✓' : 'Ajouter'}
-              </button>
-            )}
+            <VolumeControl
+              volume={player.volume}
+              muted={player.muted}
+              disabled={!song || spotify}
+              disabledReason={spotify ? 'Le volume Spotify se règle dans le lecteur Spotify.' : undefined}
+              onVolume={player.setVolume}
+              onMuted={() => player.setMuted(!player.muted)}
+            />
           </div>
         </div>
         <aside className={`now-playing-panel ${mobilePanelOpen ? 'mobile-panel-open' : ''}`} aria-label="Paroles et recommandations">
@@ -197,7 +221,7 @@ export default function NowPlaying({ onAdd, backgroundMode: initialBackgroundMod
               <div><span className="player-section-kicker">CHANTER ENSEMBLE</span><h3>Paroles</h3><p dir="auto">{song?.track_name || song?.title || 'Lecture en cours'}</p></div>
               <div className="player-panel-tools">
                 <span className="lyrics-sync-indicator">{player.mediaLoading ? 'Chargement…' : 'Synchronisées'}</span>
-                <button type="button" className="player-open-queue" onClick={() => { setActivePanel('queue'); setMobilePanelOpen(true); }} aria-label={`Ouvrir la file d’attente, ${player.queue.length} titres`}>
+                <button type="button" className="player-open-queue inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-2 text-sm text-gray-200 transition-all duration-200 ease-in-out hover:bg-white/10 active:scale-95" onClick={() => { setActivePanel('queue'); setMobilePanelOpen(true); }} aria-label={`Ouvrir la file d’attente, ${player.queue.length} titres`}>
                   <ListMusic size={17} /><span>File</span>
                 </button>
               </div>

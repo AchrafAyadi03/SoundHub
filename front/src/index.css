@@ -1,0 +1,99 @@
+/* ============================================
+   MODERN OVERRIDES — Neon Editorial
+   ============================================ */
+
+/* Sidebar item actif */
+.nav-item { position: relative; }
+.nav-item.selected {
+  background: rgba(124, 255, 203, 0.08);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.nav-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 22px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* Bottom player glassmorphism */
+.player-bar {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 12, 11, 0.82) !important;
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  box-shadow: 0 -20px 48px rgba(0, 0, 0, 0.4);
+}
+
+.player-controls .player-main-play {
+  width: 52px;
+  height: 52px;
+  background: var(--color-accent) !important;
+  color: var(--color-accent-ink) !important;
+  border: none !important;
+  box-shadow: 0 0 30px -4px var(--accent-glow);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.player-controls .player-main-play:hover {
+  transform: scale(1.06);
+  box-shadow: 0 0 44px -4px var(--accent-glow);
+}
+
+/* Progress bar néon */
+.progress-control input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.progress-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(124, 255, 203, 0.25), 0 0 14px var(--accent-glow);
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.progress-control input[type="range"]:hover::-webkit-slider-thumb,
+.progress-control input[type="range"]:focus::-webkit-slider-thumb {
+  opacity: 1;
+}
+.progress-control input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(124, 255, 203, 0.25), 0 0 14px var(--accent-glow);
+}
+
+/* Brand gradient */
+.brand-accent { color: transparent; background: linear-gradient(135deg, #7CFFCB, #B4A5FF); -webkit-background-clip: text; background-clip: text; }
+
+/* Titres sections */
+.section-heading h2,
+.page-title-row h1 {
+  font-family: var(--font-display);
+}
+
+/* Scrollbar custom */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(124, 255, 203, 0.25); background-clip: padding-box; }
