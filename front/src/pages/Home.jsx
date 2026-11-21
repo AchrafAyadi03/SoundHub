@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { ArrowRight, Plus, TrendingUp } from 'lucide-react';
+import { ArrowRight, ListPlus, TrendingUp } from 'lucide-react';
 import { api } from '../api.js';
 import { useFetch } from '../hooks.js';
 import { EmptyState, ErrorState, LoadingState, getRows } from '../components.jsx';
@@ -18,11 +18,11 @@ const TrendCard = memo(function TrendCard({ song, index, onEvent, queue, feature
       actions={(
         <button
           type="button"
-          onClick={() => onEvent(song, 'add')}
-          aria-label={`Ajouter ${title}`}
+          onClick={() => onEvent(song, 'playlist')}
+          aria-label={`Ajouter ${title} à une playlist`}
           className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-300 transition-all duration-200 ease-in-out hover:bg-emerald-300/10 hover:border-emerald-300/30 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/50 active:scale-95"
         >
-          <Plus size={16} aria-hidden="true" />
+          <ListPlus size={16} aria-hidden="true" />
         </button>
       )}
     />

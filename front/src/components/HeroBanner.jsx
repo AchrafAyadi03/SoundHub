@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Play, Plus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ListPlus, Play } from 'lucide-react';
 import { SongCover, formatArtists } from '../components.jsx';
 
 const AUTOPLAY_MS = 7000;
@@ -126,11 +126,11 @@ export default function HeroBanner({ slides = [], queue = [], onEvent, loading =
               </button>
               <button
                 type="button"
-                onClick={() => onEvent(current, 'add')}
+                onClick={() => onEvent(current, 'playlist')}
                 className="group/add inline-flex h-12 items-center gap-2 rounded-full border border-white/25 bg-white/5 px-6 text-sm font-semibold text-white backdrop-blur-md transition-all hover:border-white/60 hover:bg-white/10 active:scale-95"
               >
-                <Plus size={16} className="transition-transform duration-300 group-hover/add:rotate-90" />
-                Ajouter
+                <ListPlus size={16} />
+                Playlist
               </button>
             </div>
           </div>

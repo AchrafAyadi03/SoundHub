@@ -17,6 +17,18 @@ services:
       timeout: 10s
       retries: 20
       start_period: 60s
+    
+  redis:
+      image: redis:7
+      container_name: soundhub-redis
+      ports:
+        - "6379:6379"
+      command: ["redis-server", "--appendonly", "yes"]
+      volumes:
+        - redis-data:/data
+      restart: unless-stopped
+
 
 volumes:
   cassandra_data:
+  redis-data:

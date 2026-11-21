@@ -1,5 +1,5 @@
 import { memo, useMemo, useState } from 'react';
-import { Disc3, ListMusic, Plus, SkipForward } from 'lucide-react';
+import { Disc3, ListMusic, ListPlus, SkipForward } from 'lucide-react';
 import { api } from '../api.js';
 import { useFetch, useDebounced } from '../hooks.js';
 import { EmptyState, ErrorState, LoadingState, formatDuration, getRows } from '../components.jsx';
@@ -28,8 +28,8 @@ const CatalogueCard = memo(function CatalogueCard({ song, queue, onEvent, featur
           <button type="button" className={actionClass} aria-label={`Passer ${title}`} onClick={() => onEvent(song, 'skip')}>
             <SkipForward size={16} aria-hidden="true" />
           </button>
-          <button type="button" className={actionClass} aria-label={`Ajouter ${title}`} onClick={() => onEvent(song, 'add')}>
-            <Plus size={17} aria-hidden="true" />
+          <button type="button" className={actionClass} aria-label={`Ajouter ${title} à une playlist`} onClick={() => onEvent(song, 'playlist')}>
+            <ListPlus size={17} aria-hidden="true" />
           </button>
         </>
       )}

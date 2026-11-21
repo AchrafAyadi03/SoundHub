@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Activity as ActivityIcon, BarChart3, Disc3, Headphones, History as HistoryIcon,
-  Home, Library, Menu, Search, X,
+  Home, Library, ListMusic, Menu, Search, UserRound, Users, X,
 } from 'lucide-react';
 import { api } from './api.js';
 import { Avatar, Button, Toast } from './components.jsx';
@@ -15,19 +15,56 @@ import History from './pages/History.jsx';
 import HomePage from './pages/Home.jsx';
 import Stats from './pages/Stats.jsx';
 
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Community from './pages/Community';
+import MyPlaylists from './pages/MyPlaylists';
+import Profile from './pages/Profile';
+import PlaylistPicker from './components/PlaylistPicker';
+import SharedPlaylist from './pages/SharedPlaylist';
+
+
 const NAV_ITEMS = [
   { id: 'home', label: 'Accueil', icon: Home },
   { id: 'catalogue', label: 'Catalogue', icon: Library },
   { id: 'history', label: 'Historique', icon: HistoryIcon },
   { id: 'activity', label: 'Activité', icon: ActivityIcon },
   { id: 'stats', label: 'Statistiques', icon: BarChart3 },
+  { id: 'community', label: 'Communauté', icon: Users },
+  { id: 'playlists', label: 'Mes playlists', icon: ListMusic },
+  { id: 'profile', label: 'Profil', icon: UserRound },
 ];
 
-function AppShell({ userId, setUserId, search, setSearch, page, setPage, menuOpen, setMenuOpen, toast, setToast, notify }) {
+function AppShell({ activeUserId, search, setSearch, page, setPage, menuOpen, setMenuOpen, toast, setToast, notify, playlistSong, setPlaylistSong }) {
   const player = usePlayer();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const routePage = location.pathname === '/community'
+      ? 'community'
+      : location.pathname === '/playlists'
+        ? 'playlists'
+        : location.pathname === '/profile'
+          ? 'profile'
+          : null;
+    if (routePage) setPage(routePage);
+  }, [location.pathname, setPage]);
 
   const recordEvent = useCallback(async (song, eventType, queue) => {
-    const activeUser = userId.trim();
+    if (eventType === 'playlist') {
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+      setPlaylistSong(song);
+      return;
+    }
+    const activeUser = activeUserId.trim();
     if (!activeUser) {
       notify('Renseignez un identifiant utilisateur.', 'error');
       return;
@@ -51,13 +88,24 @@ function AppShell({ userId, setUserId, search, setSearch, page, setPage, menuOpe
       notify(`Impossible d’enregistrer l’événement : ${error.message}`, 'error');
       return false;
     }
-  }, [notify, userId]);
+  }, [notify, activeUserId, navigate, setPlaylistSong, user]);
 
   const goTo = (id) => {
-    const labels = { catalogue: 'Catalogue', history: 'Historique', activity: 'Activité', stats: 'Top', home: 'Accueil' };
+    const labels = {
+      catalogue: 'Catalogue', history: 'Historique', activity: 'Activité',
+      stats: 'Top', home: 'Accueil', community: 'Communauté', playlists: 'Mes playlists',
+      profile: 'Profil',
+    };
     player.setContextLabel(labels[id] || 'Catalogue');
     setPage(id);
     setMenuOpen(false);
+    const routes = {
+      community: '/community',
+      playlists: '/playlists',
+      profile: '/profile',
+    };
+    if (routes[id]) navigate(routes[id]);
+    else if (location.pathname !== '/') navigate('/');
   };
   const submitSearch = (event) => {
     event.preventDefault();
@@ -114,19 +162,37 @@ function AppShell({ userId, setUserId, search, setSearch, page, setPage, menuOpe
             />
             <kbd className="hidden rounded border border-white/10 px-1.5 text-xs text-gray-400 sm:inline">↵</kbd>
           </form>
-          <div className="user-selector">
-            <Avatar name={userId} />
-            <label htmlFor="current-user">Utilisateur</label>
-            <input id="current-user" value={userId} onChange={(event) => setUserId(event.target.value)} aria-label="Identifiant utilisateur courant" />
-          </div>
+          {user ? (
+            <button
+              type="button"
+              className="auth-account-button"
+              onClick={() => navigate('/profile')}
+              aria-label="Ouvrir mon profil"
+              title={`Profil : ${user.username}`}
+            >
+              <Avatar name={user.username} />
+              <span>{user.username}</span>
+            </button>
+          ) : (
+            <button type="button" className="auth-account-button" onClick={() => navigate('/login')}>
+              <span>Se connecter</span>
+            </button>
+          )}
         </header>
 
         <main className="page-content" id="main-content">
-          {page === 'home' && <HomePage userId={userId.trim()} onEvent={recordEvent} onNavigate={goTo} />}
+          {page === 'home' && <HomePage userId={activeUserId.trim()} onEvent={recordEvent} onNavigate={goTo} />}
           {page === 'catalogue' && <Catalogue query={search} onQueryChange={setSearch} onEvent={recordEvent} />}
-          {page === 'history' && <History userId={userId.trim()} />}
+          {page === 'history' && <History userId={activeUserId.trim()} />}
           {page === 'activity' && <Activity />}
           {page === 'stats' && <Stats />}
+          {page === 'community' && <Community />}
+          {page === 'playlists' && (
+            <ProtectedRoute><MyPlaylists /></ProtectedRoute>
+          )}
+          {page === 'profile' && (
+            <ProtectedRoute><Profile /></ProtectedRoute>
+          )}
         </main>
       </div>
 
@@ -141,6 +207,13 @@ function AppShell({ userId, setUserId, search, setSearch, page, setPage, menuOpe
       <PlayerBar onAdd={(song) => recordEvent(song, 'add')} />
       <NowPlaying onAdd={(song) => recordEvent(song, 'add')} />
       {player.queueOpen && <aside className="queue-float"><QueuePanel onClose={() => player.setQueueOpen(false)} /></aside>}
+      {playlistSong && (
+        <PlaylistPicker
+          song={playlistSong}
+          onClose={() => setPlaylistSong(null)}
+          onAdded={(song, title) => notify(`${song.track_name || song.title} ajouté à ${title}`)}
+        />
+      )}
       {toast && <Toast key={toast.key} message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
     </div>
   );
@@ -148,28 +221,41 @@ function AppShell({ userId, setUserId, search, setSearch, page, setPage, menuOpe
 
 export default function App() {
   const [page, setPage] = useState('home');
-  const [userId, setUserId] = useState('U00001');
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [playlistSong, setPlaylistSong] = useState(null);
+  const { user } = useAuth();
+  const activeUserId = user?.id || '';
   const notify = useCallback((message, tone = 'success') => {
     setToast({ message, tone, key: Date.now() });
   }, []);
   return (
-    <PlayerProvider userId={userId} notify={notify}>
-      <AppShell
-        userId={userId}
-        setUserId={setUserId}
-        search={search}
-        setSearch={setSearch}
-        page={page}
-        setPage={setPage}
-        menuOpen={menuOpen}
-        setMenuOpen={setMenuOpen}
-        toast={toast}
-        setToast={setToast}
-        notify={notify}
-      />
+    <PlayerProvider userId={activeUserId} notify={notify}>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/playlist/shared/:token" element={<SharedPlaylist />} />
+        <Route
+          path="*"
+          element={
+            <AppShell
+              activeUserId={activeUserId}
+              search={search}
+              setSearch={setSearch}
+              page={page}
+              setPage={setPage}
+              menuOpen={menuOpen}
+              setMenuOpen={setMenuOpen}
+              toast={toast}
+              setToast={setToast}
+              notify={notify}
+              playlistSong={playlistSong}
+              setPlaylistSong={setPlaylistSong}
+            />
+          }
+        />
+      </Routes>
     </PlayerProvider>
   );
 }
