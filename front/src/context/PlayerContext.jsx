@@ -37,6 +37,9 @@ function reducer(state, action) {
         currentIndex: action.index,
         position: 0,
         duration: 0,
+        media: null,
+        mediaLoading: true,
+        unavailable: false,
         spotifyPosition: null,
         spotifyDuration: null,
       };
@@ -46,6 +49,9 @@ function reducer(state, action) {
         currentIndex: action.index,
         position: 0,
         duration: 0,
+        media: null,
+        mediaLoading: true,
+        unavailable: false,
         spotifyPosition: null,
         spotifyDuration: null,
       };
@@ -57,7 +63,7 @@ function reducer(state, action) {
     case 'SHUFFLE': return { ...state, shuffle: action.value };
     case 'REPEAT': return { ...state, repeat: action.value };
     case 'MEDIA': return { ...state, media: action.value, mediaLoading: false, unavailable: action.value?.source === 'none' };
-    case 'MEDIA_LOADING': return { ...state, mediaLoading: action.value, unavailable: false };
+    case 'MEDIA_LOADING': return { ...state, media: action.value ? null : state.media, mediaLoading: action.value, unavailable: false };
     case 'UNAVAILABLE': return { ...state, unavailable: true, playing: false };
     case 'NOW_OPEN': return { ...state, nowPlayingOpen: action.value };
     case 'QUEUE_OPEN': return { ...state, queueOpen: action.value };
@@ -131,6 +137,7 @@ export function PlayerProvider({ children, userId, notify }) {
     if (!current) return;
     playStartedRef.current = false;
     dispatch({ type: 'POSITION', value: 0 });
+    dispatch({ type: 'MEDIA_LOADING', value: true });
     loadMedia(current);
   }, [currentId, current, loadMedia]);
 
@@ -268,9 +275,12 @@ export function PlayerProvider({ children, userId, notify }) {
       }
       return;
     }
-    if (state.repeat === 'all' || state.currentIndex < state.queue.length - 1) next(false);
-    else dispatch({ type: 'PLAYING', value: false });
-  }, [next, state.repeat, state.currentIndex, state.queue.length, state.media?.source, state.spotifyDuration]);
+    if (state.queue.length > 1) {
+      next(false);
+      return;
+    }
+    dispatch({ type: 'PLAYING', value: false });
+  }, [next, state.repeat, state.queue.length, state.media?.source, state.spotifyDuration]);
 
   const handleError = useCallback(() => dispatch({ type: 'UNAVAILABLE' }), []);
   const handleLocalPlay = useCallback(() => {
@@ -383,7 +393,11 @@ export function PlayerProvider({ children, userId, notify }) {
     handleError,
     handleLocalPlay,
     recordEvent,
-    setVolume: (volume) => dispatch({ type: 'VOLUME', value: volume }),
+    setVolume: (volume) => {
+      const safeVolume = Math.min(1, Math.max(0, Number(volume) || 0));
+      dispatch({ type: 'VOLUME', value: safeVolume });
+      if (safeVolume > 0) dispatch({ type: 'MUTED', value: false });
+    },
     setMuted: (value) => dispatch({ type: 'MUTED', value }),
     setShuffle: (value) => dispatch({ type: 'SHUFFLE', value }),
     cycleRepeat: () => dispatch({ type: 'REPEAT', value: state.repeat === 'none' ? 'all' : state.repeat === 'all' ? 'one' : 'none' }),

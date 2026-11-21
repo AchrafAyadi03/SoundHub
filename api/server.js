@@ -13,6 +13,12 @@ const app = express();
 const PORT = Number(process.env.PORT || 3001);
 const IMPORTS_DIR = process.env.IMPORTS_DIR || path.join(__dirname, '..', 'imports');
 
+const dbConnect = require('./src/config/db');
+dbConnect().catch((err) => {
+  console.error('Erreur de connexion à MongoDB:', err);
+  process.exit(1);
+});
+
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
 app.use(express.json());
 app.use('/api/media-files', express.static(MEDIA_DIR));
