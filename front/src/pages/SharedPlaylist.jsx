@@ -7,7 +7,7 @@ import { usePlayer } from '../context/PlayerContext';
 import { Avatar, EmptyState, ErrorState, LoadingState, SongCover, formatArtists, formatDuration } from '../components.jsx';
 
 export default function SharedPlaylist() {
-  const { token } = useParams();
+  const { token, id } = useParams();
   const { user } = useAuth();
   const player = usePlayer();
   const [playlist, setPlaylist] = useState(null);
@@ -20,7 +20,7 @@ export default function SharedPlaylist() {
     setError('');
     try {
       const [shared, songs] = await Promise.all([
-        api.sharedPlaylist(token),
+        token ? api.sharedPlaylist(token) : api.playlist(id),
         api.songs('', 500),
       ]);
       setPlaylist(shared);
@@ -32,7 +32,7 @@ export default function SharedPlaylist() {
     }
   };
 
-  useEffect(() => { load(); }, [token]);
+  useEffect(() => { load(); }, [token, id]);
 
   const songs = useMemo(() => {
     if (!playlist?.tracks) return [];

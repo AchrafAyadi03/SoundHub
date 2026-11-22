@@ -1,12 +1,12 @@
-import { memo, useMemo } from 'react';
-import { ArrowRight, ListPlus, TrendingUp } from 'lucide-react';
+import { memo, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Heart, ListPlus, TrendingUp } from 'lucide-react';
 import { api } from '../api.js';
 import { useFetch } from '../hooks.js';
 import { EmptyState, ErrorState, LoadingState, getRows } from '../components.jsx';
 import HeroBanner from '../components/HeroBanner.jsx';
 import MusicCard from '../components/MusicCard.jsx';
 
-const TrendCard = memo(function TrendCard({ song, index, onEvent, queue, featured }) {
+const TrendCard = memo(function TrendCard({ song, index, onEvent, queue, featured, liked, onLike }) {
   const title = song.track_name || song.song_id || 'Titre inconnu';
   return (
     <MusicCard
@@ -16,14 +16,25 @@ const TrendCard = memo(function TrendCard({ song, index, onEvent, queue, feature
       onPlay={() => onEvent(song, 'play', queue)}
       playLabel={`Écouter ${title}`}
       actions={(
-        <button
-          type="button"
-          onClick={() => onEvent(song, 'playlist')}
-          aria-label={`Ajouter ${title} à une playlist`}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-300 transition-all duration-200 ease-in-out hover:bg-emerald-300/10 hover:border-emerald-300/30 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/50 active:scale-95"
-        >
-          <ListPlus size={16} aria-hidden="true" />
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => onLike?.(song)}
+            aria-label={`${liked ? 'Retirer' : 'Ajouter'} ${title} ${liked ? 'des titres likés' : 'aux titres likés'}`}
+            aria-pressed={liked}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-all duration-200 ease-in-out active:scale-95 ${liked ? 'text-emerald-300 border-emerald-300/30 bg-emerald-300/10' : 'text-gray-300 hover:bg-emerald-300/10 hover:border-emerald-300/30 hover:text-emerald-300'}`}
+          >
+            <Heart size={16} fill={liked ? 'currentColor' : 'none'} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onEvent(song, 'playlist')}
+            aria-label={`Ajouter ${title} à une playlist`}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-300 transition-all duration-200 ease-in-out hover:bg-emerald-300/10 hover:border-emerald-300/30 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/50 active:scale-95"
+          >
+            <ListPlus size={16} aria-hidden="true" />
+          </button>
+        </>
       )}
     />
   );
@@ -32,8 +43,24 @@ const TrendCard = memo(function TrendCard({ song, index, onEvent, queue, feature
 export default function HomePage({ userId, onEvent, onNavigate }) {
   const top = useFetch(() => api.topSongs(10), []);
   const discovery = useFetch(() => api.songs('', 10), []);
+  const inspired = useFetch(() => api.publicPlaylists({ page: 1, limit: 8 }), []);
   const topSongs = getRows(top.data);
   const newSongs = getRows(discovery.data);
+  const inspiredPlaylists = Array.isArray(inspired.data?.items) ? inspired.data.items : [];
+  const [likedIds, setLikedIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('soundhub-liked-songs') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem('soundhub-liked-songs', JSON.stringify(likedIds));
+  }, [likedIds]);
+  const toggleLiked = (song) => {
+    const id = String(song.song_id || song.id);
+    setLikedIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]);
+  };
 
   const heroSongs = useMemo(() => (
     topSongs.length
@@ -63,6 +90,17 @@ export default function HomePage({ userId, onEvent, onNavigate }) {
 
   return (
     <div className="page-stack">
+      <section className="spotify-home-header" aria-label="Accueil SoundHub">
+        <div className="spotify-home-title">
+          <span className="eyebrow">SoundHub</span>
+          <h1>Bonjour</h1>
+        </div>
+        <div className="spotify-filter-pills" aria-label="Filtres rapides">
+          <button type="button" className="is-selected" onClick={() => onNavigate('home')}>Tout</button>
+          <button type="button" onClick={() => onNavigate('catalogue')}>Musique</button>
+          <button type="button" onClick={() => onNavigate('playlists')}>Playlists</button>
+        </div>
+      </section>
       <HeroBanner
         slides={heroSongs}
         queue={topSongs.length ? heroSongs : newSongs}
@@ -75,6 +113,38 @@ export default function HomePage({ userId, onEvent, onNavigate }) {
       {top.error && topSongs.length === 0 && newSongs.length > 0 && (
         <p className="sr-only" role="status">Le classement est indisponible. Le catalogue est affiché en remplacement.</p>
       )}
+
+      <section className="content-section">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow font-mono tracking-[0.2em] text-emerald-300/80">FAIT POUR VOUS</span>
+            <h2 className="mt-2 text-2xl md:text-3xl font-bold tracking-tight">Playlists inspirées</h2>
+            <p className="mt-1 text-gray-400">Sélections communautaires adaptées à vos envies.</p>
+          </div>
+          <button type="button" className="spotify-text-link" onClick={() => onNavigate('playlists')}>Tout afficher</button>
+        </div>
+        {inspired.loading ? <LoadingState rows={2} /> : inspired.error ? null : inspiredPlaylists.length ? (
+          <div className="spotify-playlist-grid">
+            {inspiredPlaylists.slice(0, 8).map((playlist) => (
+              <button
+                type="button"
+                className="spotify-playlist-card"
+                key={playlist.id}
+                onClick={() => window.location.assign(playlist.shareToken ? `/playlist/shared/${playlist.shareToken}` : `/playlist/${playlist.id}`)}
+              >
+                <span className="spotify-playlist-cover"><ListPlus size={30} /></span>
+                <strong>{playlist.title}</strong>
+                <span>{playlist.description || `Créée par ${playlist.owner?.username || 'la communauté'} · ${playlist.tracksCount} titres`}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="spotify-empty-playlists">
+            <ListPlus size={22} />
+            <div><strong>Créez votre première playlist</strong><span>Ajoutez vos titres préférés et retrouvez-les ici.</span></div>
+          </div>
+        )}
+      </section>
 
       <section className="content-section">
         <div className="section-heading">
@@ -103,6 +173,8 @@ export default function HomePage({ userId, onEvent, onNavigate }) {
                 queue={topSongs}
                 onEvent={onEvent}
                 featured={index === 0}
+                liked={likedIds.includes(String(song.song_id || song.id))}
+                onLike={toggleLiked}
               />
             ))}
           </div>
@@ -132,6 +204,8 @@ export default function HomePage({ userId, onEvent, onNavigate }) {
                 queue={newSongs}
                 onEvent={onEvent}
                 featured={index === 0}
+                liked={likedIds.includes(String(song.song_id || song.id))}
+                onLike={toggleLiked}
               />
             ))}
           </div>

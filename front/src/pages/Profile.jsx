@@ -1,9 +1,20 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, Mail, Music2, UserRound } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Activity as ActivityIcon, BarChart3, History as HistoryIcon, LogOut, Mail, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Avatar } from '../components.jsx';
+import History from './History.jsx';
+import Activity from './Activity.jsx';
+import Stats from './Stats.jsx';
+import '../styles/dock.css';
 
-export default function Profile() {
+const TABS = [
+  { id: 'overview', label: 'Aperçu', icon: UserRound },
+  { id: 'history', label: 'Historique', icon: HistoryIcon },
+  { id: 'activity', label: 'Activité', icon: ActivityIcon },
+  { id: 'stats', label: 'Statistiques', icon: BarChart3 },
+];
+
+function ProfileOverview() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -32,30 +43,53 @@ export default function Profile() {
       <section className="profile-grid" aria-label="Informations du profil">
         <article className="profile-card">
           <UserRound size={20} />
-          <div>
-            <span>Nom d'utilisateur</span>
-            <strong>{user.username}</strong>
-          </div>
+          <div><span>Nom d'utilisateur</span><strong>{user.username}</strong></div>
         </article>
         <article className="profile-card">
           <Mail size={20} />
-          <div>
-            <span>Adresse email</span>
-            <strong>{user.email}</strong>
-          </div>
+          <div><span>Adresse email</span><strong>{user.email}</strong></div>
         </article>
       </section>
 
-      <section className="profile-actions">
-        <Link className="profile-action" to="/playlists">
-          <Music2 size={18} />
-          Mes playlists
-        </Link>
-        <button type="button" className="profile-action profile-action-danger" onClick={handleLogout}>
-          <LogOut size={18} />
-          Se déconnecter
-        </button>
-      </section>
+      <button type="button" className="profile-action profile-action-danger" onClick={handleLogout}>
+        <LogOut size={18} />
+        Se déconnecter
+      </button>
     </main>
+  );
+}
+
+export default function Profile({ userId }) {
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('tab');
+  const tab = TABS.some((item) => item.id === requested) ? requested : 'overview';
+  const index = TABS.findIndex((item) => item.id === tab);
+
+  return (
+    <div className="profile-hub">
+      <div className="hub-tabs" role="tablist" style={{ '--i': index, '--n': TABS.length }}>
+        <span className="hub-tab-pill" aria-hidden="true" />
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={`hub-tab ${tab === id ? 'is-active' : ''}`}
+            onClick={() => setParams(id === 'overview' ? {} : { tab: id }, { replace: true })}
+          >
+            <Icon size={16} strokeWidth={1.9} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="hub-panel" key={tab} role="tabpanel">
+        {tab === 'overview' && <ProfileOverview />}
+        {tab === 'history' && <History userId={userId} />}
+        {tab === 'activity' && <Activity />}
+        {tab === 'stats' && <Stats />}
+      </div>
+    </div>
   );
 }

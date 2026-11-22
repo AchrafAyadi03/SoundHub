@@ -1,11 +1,11 @@
-import { memo, useMemo, useState } from 'react';
-import { Disc3, ListMusic, ListPlus, SkipForward } from 'lucide-react';
+import { memo, useEffect, useMemo, useState } from 'react';
+import { Disc3, Heart, ListMusic, ListPlus, SkipForward } from 'lucide-react';
 import { api } from '../api.js';
 import { useFetch, useDebounced } from '../hooks.js';
 import { EmptyState, ErrorState, LoadingState, formatDuration, getRows } from '../components.jsx';
 import MusicCard from '../components/MusicCard.jsx';
 
-const CatalogueCard = memo(function CatalogueCard({ song, queue, onEvent, featured }) {
+const CatalogueCard = memo(function CatalogueCard({ song, queue, onEvent, featured, liked, onLike }) {
   const title = song.track_name || song.song_id || 'Titre inconnu';
   const actionClass =
     'inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-300 transition-all duration-200 ease-in-out hover:bg-emerald-300/10 hover:border-emerald-300/30 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/50 active:scale-95';
@@ -25,6 +25,9 @@ const CatalogueCard = memo(function CatalogueCard({ song, queue, onEvent, featur
       )}
       actions={(
         <>
+          <button type="button" className={actionClass} aria-label={`${liked ? 'Retirer' : 'Ajouter'} ${title} ${liked ? 'des titres likés' : 'aux titres likés'}`} aria-pressed={liked} onClick={() => onLike(song)}>
+            <Heart size={16} fill={liked ? 'currentColor' : 'none'} aria-hidden="true" />
+          </button>
           <button type="button" className={actionClass} aria-label={`Passer ${title}`} onClick={() => onEvent(song, 'skip')}>
             <SkipForward size={16} aria-hidden="true" />
           </button>
@@ -40,6 +43,15 @@ const CatalogueCard = memo(function CatalogueCard({ song, queue, onEvent, featur
 export default function Catalogue({ query, onQueryChange, onEvent }) {
   const [genre, setGenre] = useState('');
   const [limit, setLimit] = useState(30);
+  const [likedIds, setLikedIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('soundhub-liked-songs') || '[]'); }
+    catch { return []; }
+  });
+  useEffect(() => localStorage.setItem('soundhub-liked-songs', JSON.stringify(likedIds)), [likedIds]);
+  const toggleLiked = (song) => {
+    const id = String(song.song_id || song.id);
+    setLikedIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]);
+  };
   const debouncedQuery = useDebounced(query, 300);
   const request = useFetch(() => api.songs(debouncedQuery, limit), [debouncedQuery, limit]);
   const songs = getRows(request.data);
@@ -112,6 +124,8 @@ export default function Catalogue({ query, onQueryChange, onEvent }) {
                 queue={filtered}
                 onEvent={onEvent}
                 featured={i === 0}
+                liked={likedIds.includes(String(song.song_id || song.id))}
+                onLike={toggleLiked}
               />
             ))}
           </div>

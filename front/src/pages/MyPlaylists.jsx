@@ -8,7 +8,7 @@
  *   - supprimer une playlist.
  * ===================================================================== */
 import { useEffect, useState } from 'react';
-import { ExternalLink, ListMusic, Pause, Play, Trash2 } from 'lucide-react';
+import { ExternalLink, Heart, ListMusic, Pause, Play, Plus, Trash2, X } from 'lucide-react';
 import { http as api } from '../api';
 import { api as apiObject } from '../api';
 import { EmptyState, SongCover, formatArtists, formatDuration } from '../components.jsx';
@@ -27,6 +27,11 @@ export default function MyPlaylists() {
   const [details, setDetails] = useState({});
   const [catalogue, setCatalogue] = useState([]);
   const player = usePlayer(); // id -> lien affiché
+  const [createOpen, setCreateOpen] = useState(false);
+  const [likedIds, setLikedIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('soundhub-liked-songs') || '[]'); }
+    catch { return []; }
+  });
 
   // Charge les playlists de l'utilisateur au premier affichage.
   useEffect(() => {
@@ -49,6 +54,8 @@ export default function MyPlaylists() {
       const pl = await api('/playlists', { method: 'POST', body: { title, visibility } });
       setPlaylists((list) => [pl, ...list]);
       setTitle('');
+      setVisibility('private');
+      setCreateOpen(false);
     } catch (err) { setError(err.message); }
   }
 
@@ -121,19 +128,58 @@ export default function MyPlaylists() {
 
   return (
     <main className="my-playlists">
-      <h1>Mes playlists</h1>
+      <div className="playlist-library-header">
+        <div>
+          <span className="eyebrow">Bibliothèque</span>
+          <h1>Vos playlists</h1>
+        </div>
+        <button type="button" className="spotify-create-button" onClick={() => setCreateOpen(true)}>
+          <Plus size={18} /> Nouvelle playlist
+        </button>
+      </div>
 
-      <form onSubmit={create} className="inline-form">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nom de la playlist" maxLength={150} required />
-        <select value={visibility} onChange={(e) => setVisibility(e.target.value)}>
-          {Object.entries(LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-        <button type="submit">Nouvelle playlist</button>
-      </form>
+      {createOpen && (
+        <div className="playlist-create-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setCreateOpen(false)}>
+          <form className="playlist-create-modal" onSubmit={create} role="dialog" aria-modal="true" aria-labelledby="create-playlist-title">
+            <header>
+              <div><span>Créer une playlist</span><h2 id="create-playlist-title">Donnez-lui un nom</h2></div>
+              <button type="button" onClick={() => setCreateOpen(false)} aria-label="Fermer"><X size={18} /></button>
+            </header>
+            <label>
+              <span>Nom</span>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ma playlist" maxLength={150} required autoFocus />
+            </label>
+            <label>
+              <span>Visibilité</span>
+              <select value={visibility} onChange={(e) => setVisibility(e.target.value)}>
+                {Object.entries(LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <button type="submit" className="spotify-create-submit" disabled={!title.trim()}>
+              Créer la playlist
+            </button>
+          </form>
+        </div>
+      )}
 
       {error && <p className="form-error" role="alert">{error}</p>}
       {loading && <p>Chargement…</p>}
       {!loading && playlists.length === 0 && <p>Vous n'avez pas encore de playlist.</p>}
+
+      <section className="liked-library-section" aria-label="Titres likés">
+        <button
+          type="button"
+          className="liked-playlist-card"
+          onClick={() => {
+            const likedSongs = catalogue.filter((song) => likedIds.includes(String(song.song_id || song.id)));
+            if (likedSongs[0]) player.playSong(likedSongs[0], likedSongs);
+          }}
+          disabled={!likedIds.length}
+        >
+          <span className="liked-playlist-gradient"><Heart size={34} fill="currentColor" /></span>
+          <span><strong>Titres likés</strong><small>{likedIds.length} titre{likedIds.length > 1 ? 's' : ''}</small></span>
+        </button>
+      </section>
 
       <ul>
         {playlists.map((pl) => {
