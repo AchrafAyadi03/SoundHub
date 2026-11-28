@@ -88,7 +88,9 @@ app.use(cookieParser());
  * ------------------------------------------------------------------- */
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/playlists', createPlaylistRouter((songId) => getSongs().byId.get(songId)));
-app.use('/api/community', require('./src/routes/community'));
+const community = require('./src/routes/community');
+community.setSongLookup((songId) => getSongs().byId.get(songId));
+app.use('/api/community', community);
 
 /* ---------------------------------------------------------------------
  * 7. FICHIERS MÉDIA ET ARTISTES
@@ -242,7 +244,7 @@ function normalizeSongRow(r) {
     album_name: firstValue(r.album_name, r.album) || '',
     track_genre: csvList(firstValue(r.track_genre, r.genre, r.genres)).split(';')[0] || '',
     popularity: Number(r.popularity) || 0,
-    duration_ms: durationInMs(firstValue(r.duration_ms, r.duration)),
+    duration_ms: durationInMs(firstValue(r.duration_ms, r.track_duration_ms, r.duration)),
     year: optionalNumber(firstValue(r.year, r.release_year)),
     mood: r.mood || '',
     energy: optionalNumber(r.energy),

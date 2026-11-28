@@ -1,0 +1,242 @@
+/* =====================================================================
+ * src/pages/community.css : style de la page Communauté (inspiré de Spotify)
+ * ---------------------------------------------------------------------
+ * Les couleurs utilisent tes variables CSS si elles existent
+ * (--accent, --surface, --text, --text-muted) sinon des valeurs par défaut.
+ * ===================================================================== */
+.community {
+  --c-accent: var(--accent, #1db954);
+  --c-surface: var(--surface, #181818);
+  --c-surface-2: var(--surface-2, #242424);
+  --c-text: var(--text, #fff);
+  --c-muted: var(--text-muted, #b3b3b3);
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 120px; /* marge basse pour ne pas passer sous le lecteur */
+  color: var(--c-text);
+}
+
+/* ----- Publication ----- */
+.community .composer,
+.community .post {
+  background: var(--c-surface);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.community .composer { display: grid; gap: 10px; }
+.community .composer textarea,
+.community .composer select,
+.community .comment-form input {
+  width: 100%;
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+}
+.community .composer textarea:focus,
+.community .comment-form input:focus { outline: none; border-color: var(--c-accent); }
+.community .composer button[type='submit'],
+.community .comment-form button,
+.community .load-more {
+  justify-self: end;
+  background: var(--c-accent);
+  color: #000;
+  font-weight: 700;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 20px;
+  cursor: pointer;
+}
+.community button:disabled { opacity: 0.5; cursor: not-allowed; }
+.community .load-more { display: block; margin: 8px auto; }
+
+/* ----- En-tête et pied de post ----- */
+.post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.post-author { display: grid; flex: 1; }
+.post-author time { font-size: 12px; color: var(--c-muted); }
+.avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--c-accent); color: #000; font-weight: 800;
+}
+.post-content { margin: 0 0 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.post-footer { display: flex; gap: 8px; margin-top: 12px; }
+.post-action, .icon-button {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; color: var(--c-muted);
+  border: 0; border-radius: 999px; padding: 6px 10px; cursor: pointer;
+}
+.post-action:hover, .icon-button:hover { color: var(--c-text); background: var(--c-surface-2); }
+.post-action.is-liked { color: #f15e6c; }
+
+/* ----- Carte de playlist façon Spotify ----- */
+.sp-playlist {
+  --hue: 140;
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(160deg, hsl(var(--hue) 45% 26%) 0%, var(--c-surface-2) 70%);
+}
+.sp-hero { display: flex; gap: 16px; padding: 16px; align-items: flex-end; }
+.sp-cover {
+  flex: none; width: 132px; height: 132px; border-radius: 6px; overflow: hidden;
+  display: grid; place-items: center;
+  background: var(--c-surface-2); color: var(--c-muted);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.sp-cover-grid { display: grid; grid-template-columns: 1fr 1fr; width: 100%; height: 100%; }
+.sp-cover-cell { width: 100%; height: 100%; overflow: hidden; }
+/* Force la pochette (SongCover) à remplir sa case, quelle que soit sa taille par défaut. */
+.sp-cover-cell > * { width: 100% !important; height: 100% !important; min-width: 0; border-radius: 0; }
+.sp-cover-cell img { width: 100%; height: 100%; object-fit: cover; }
+
+.sp-hero-info { min-width: 0; }
+.sp-kind { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+.sp-hero-info h3 { margin: 4px 0; font-size: clamp(22px, 4vw, 32px); line-height: 1.1; overflow-wrap: anywhere; }
+.sp-desc { margin: 0 0 6px; color: var(--c-muted); font-size: 14px; }
+.sp-meta { margin: 0; font-size: 13px; color: var(--c-muted); }
+.sp-meta strong { color: var(--c-text); }
+
+.sp-actions { display: flex; align-items: center; gap: 14px; padding: 4px 16px 14px; }
+.sp-play {
+  width: 52px; height: 52px; border-radius: 50%; border: 0; cursor: pointer;
+  display: grid; place-items: center;
+  background: var(--c-accent); color: #000;
+  transition: transform 0.15s ease;
+}
+.sp-play:hover:not(:disabled) { transform: scale(1.06); }
+.sp-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; color: var(--c-text);
+  border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 999px;
+  padding: 6px 14px; cursor: pointer; font: inherit; font-size: 13px;
+}
+.sp-toggle:hover { border-color: var(--c-text); }
+.sp-toggle .is-flipped { transform: rotate(180deg); }
+
+/* ----- Liste de morceaux ----- */
+.sp-tracklist { background: rgba(0, 0, 0, 0.28); padding: 8px 8px 12px; }
+.sp-track {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 3fr) minmax(0, 2fr) 56px;
+  align-items: center; gap: 12px;
+  padding: 6px 8px; border-radius: 6px;
+  font-size: 14px;
+}
+.sp-track:not(.sp-track-head):hover { background: rgba(255, 255, 255, 0.1); }
+.sp-track-head {
+  color: var(--c-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0; margin-bottom: 4px;
+}
+/* ----- Numéros de piste -----
+ * Cercle parfait de 32 px avec le numéro au centre (chiffres de largeur fixe).
+ *   - repos              : cercle discret (fond translucide, fin contour) ;
+ *   - survol de la ligne : l'icône lecture remplace le numéro ;
+ *   - survol du cercle   : pastille pleine couleur d'accent ;
+ *   - morceau en cours   : cercle teinté d'accent, égaliseur animé en lecture.
+ * Les règles « button.sp-track-index » (avec !important sur la forme et la
+ * taille) neutralisent les styles globaux des boutons de l'application (fond
+ * coloré, hauteur minimale, marges...), qui déformaient le cercle en ovale. */
+.sp-track-index {
+  display: grid; place-items: center;
+  justify-self: center;
+  font-size: 13px; font-weight: 600; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-muted);
+}
+.sp-track-head .sp-track-index { font-size: 12px; letter-spacing: 0.04em; }
+
+.community .sp-tracklist button.sp-track-index {
+  box-sizing: border-box !important;
+  width: 32px !important; height: 32px !important;
+  min-width: 32px !important; min-height: 32px !important;
+  max-width: 32px !important; max-height: 32px !important;
+  aspect-ratio: 1 / 1;
+  margin: 0 !important; padding: 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  box-shadow: none !important;
+  color: var(--c-text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+/* Numéro, icône et égaliseur sont superposés dans la même case. */
+.sp-num, .sp-icon, .sp-eq { grid-area: 1 / 1; }
+.sp-icon { display: none; }
+
+/* Survol de la ligne : le numéro laisse place à l'icône lecture/pause. */
+.community .sp-tracklist .sp-track:not(.sp-track-head):hover .sp-num,
+.community .sp-tracklist .sp-track:not(.sp-track-head):hover .sp-eq { display: none; }
+.community .sp-tracklist .sp-track:not(.sp-track-head):hover .sp-icon { display: block; }
+.community .sp-tracklist .sp-track:not(.sp-track-head):hover button.sp-track-index {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Survol du cercle lui-même : pastille pleine. */
+.community .sp-tracklist .sp-track:not(.sp-track-head) button.sp-track-index:hover {
+  background: var(--c-accent) !important;
+  border-color: var(--c-accent) !important;
+  color: #000;
+  transform: scale(1.1);
+}
+.community .sp-tracklist .sp-track button.sp-track-index:focus-visible {
+  outline: 2px solid var(--c-accent); outline-offset: 2px;
+}
+
+/* Morceau en cours : ligne surlignée, cercle et titre aux couleurs d'accent. */
+.sp-track.is-active { background: rgba(255, 255, 255, 0.06); }
+.community .sp-tracklist .sp-track.is-active button.sp-track-index {
+  background: rgba(29, 185, 84, 0.2) !important;
+  background: color-mix(in srgb, var(--c-accent) 22%, transparent) !important;
+  border-color: var(--c-accent) !important;
+  color: var(--c-accent);
+}
+.sp-track.is-active .sp-track-main strong { color: var(--c-accent); }
+
+/* Égaliseur animé (affiché uniquement pendant la lecture). */
+.sp-eq { display: flex; align-items: flex-end; gap: 2px; height: 12px; }
+.sp-eq i {
+  display: block; width: 3px; height: 30%;
+  background: var(--c-accent); border-radius: 1px;
+  animation: sp-eq-bounce 0.9s ease-in-out infinite;
+}
+.sp-eq i:nth-child(1) { animation-delay: -0.5s; }
+.sp-eq i:nth-child(2) { animation-delay: -0.2s; }
+.sp-eq i:nth-child(3) { animation-delay: -0.7s; }
+.sp-eq i:nth-child(4) { animation-delay: -0.35s; }
+@keyframes sp-eq-bounce {
+  0%, 100% { height: 25%; }
+  50% { height: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-eq i { animation: none; height: 70%; }
+}
+
+.sp-track-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sp-track-main > div { display: grid; min-width: 0; }
+.sp-track-main strong,
+.sp-track-main span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-track-main span { font-size: 12px; color: var(--c-muted); }
+.sp-col-album { color: var(--c-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-col-dur { color: var(--c-muted); text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ----- Commentaires ----- */
+.comments { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--c-surface-2); display: grid; gap: 8px; }
+.comment { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; font-size: 14px; overflow-wrap: anywhere; }
+.comment-form { display: flex; gap: 8px; }
+
+.sp-muted { color: var(--c-muted); font-size: 14px; margin: 8px 0; }
+.community .form-error { color: #f15e6c; font-size: 14px; }
+
+/* ----- Mobile : on masque la colonne Album et on réduit la pochette ----- */
+@media (max-width: 560px) {
+  .sp-hero { flex-direction: column; align-items: flex-start; }
+  .sp-cover { width: 112px; height: 112px; }
+  .sp-track { grid-template-columns: 32px minmax(0, 1fr) 48px; }
+  .sp-col-album { display: none; }
+}

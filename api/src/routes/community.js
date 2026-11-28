@@ -1,7 +1,10 @@
 /* =====================================================================
  * routes/community.js : espace communauté (posts, likes, commentaires)
  * ---------------------------------------------------------------------
- * Montage dans server.js : app.use('/api/community', require('./src/routes/community'));
+ * Montage dans server.js (voir le bloc d'installation) :
+ *   const community = require('./src/routes/community');
+ *   community.setSongLookup((songId) => getSongs().byId.get(songId));
+ *   app.use('/api/community', community);
  *
  * Règles d'accès :
  *   - INVITÉ     : peut lire le fil et les commentaires (lecture seule).
@@ -15,6 +18,17 @@ const Post = require('../models/Post');
 const Playlist = require('../models/Playlist');
 const redis = require('../config/redis');
 const { auth, optionalAuth } = require('../middleware/auth');
+
+/* ---------------------------------------------------------------------
+ * RÉSOLUTION DES MORCEAUX (catalogue CSV)
+ * Cas d'utilisation : une playlist ne stocke que des identifiants de
+ * morceaux (trackId). Le serveur les associe au catalogue (titre, artistes,
+ * album, durée, pochette, audio) pour que le front n'ait plus à charger
+ * tout le catalogue : plus de limite de 500 morceaux, affichage plus rapide.
+ * La fonction de recherche est fournie par server.js via setSongLookup.
+ * ------------------------------------------------------------------- */
+let songLookup = () => null;
+router.setSongLookup = (fn) => { songLookup = fn; };
 
 /* ---------------------------------------------------------------------
  * UTILITAIRES
@@ -41,12 +55,29 @@ async function postLimiter(req, res, next) {
   }
 }
 
+/* Trie les morceaux d'une playlist par position.
+ * Cas d'utilisation : afficher les morceaux dans l'ordre voulu par l'auteur. */
+const sortedTracks = (pl) => [...pl.tracks].sort((a, b) => a.position - b.position);
+
+/* Met en forme un morceau de playlist, enrichi des infos du catalogue.
+ * `song` vaut null si l'identifiant n'existe pas (ou plus) dans le catalogue. */
+const trackOf = (t) => ({
+  trackId: t.trackId,
+  position: t.position,
+  song: songLookup(String(t.trackId)) || null,
+});
+
 /* Met en forme un post pour le front.
  * Cas d'utilisation : ne renvoyer que des compteurs (pas la liste des likes),
- * savoir si le visiteur a déjà liké, et masquer une playlist redevenue privée. */
+ * savoir si le visiteur a déjà liké, et masquer une playlist redevenue privée.
+ *   - Fil (withComments = false) : playlist avec 4 morceaux d'aperçu
+ *     (previewTracks), pour la mosaïque de pochettes façon Spotify.
+ *   - Détail (withComments = true) : playlist avec TOUS ses morceaux (tracks),
+ *     plus les commentaires ; chargé quand l'utilisateur déplie la carte. */
 function formatPost(p, viewer, withComments = false) {
   const viewerId = viewer ? viewer.sub : null;
   const pl = p.playlist && p.playlist.visibility !== 'private' ? p.playlist : null;
+
   const out = {
     id: p._id,
     type: p.type,
@@ -55,7 +86,13 @@ function formatPost(p, viewer, withComments = false) {
       ? { id: String(p.author._id), username: p.author.username, avatarUrl: p.author.avatarUrl || null }
       : { id: null, username: 'Utilisateur supprimé', avatarUrl: null },
     playlist: pl
-      ? { id: pl._id, title: pl.title, description: pl.description || '', tracksCount: pl.tracks.length }
+      ? {
+          id: pl._id,
+          title: pl.title,
+          description: pl.description || '',
+          tracksCount: pl.tracks.length,
+          previewTracks: sortedTracks(pl).slice(0, 4).map(trackOf),
+        }
       : null,
     likesCount: p.likes.length,
     likedByMe: viewerId ? p.likes.some((l) => String(l) === viewerId) : false,
@@ -63,7 +100,10 @@ function formatPost(p, viewer, withComments = false) {
     isMine: !!viewerId && !!p.author && String(p.author._id) === viewerId,
     createdAt: p.createdAt,
   };
+
   if (withComments) {
+    // Liste complète des morceaux, uniquement dans le détail du post
+    if (out.playlist) out.playlist.tracks = sortedTracks(pl).map(trackOf);
     out.comments = p.comments.map((c) => ({
       id: c._id,
       content: c.content,
@@ -149,8 +189,10 @@ router.post('/posts', auth, postLimiter, asyncH(async (req, res) => {
 }));
 
 /* ---------------------------------------------------------------------
- * 3. DÉTAIL D'UN POST AVEC SES COMMENTAIRES (invité autorisé)
- * Cas d'utilisation : ouvrir un post et lire la discussion.
+ * 3. DÉTAIL D'UN POST AVEC SES MORCEAUX ET SES COMMENTAIRES (invité autorisé)
+ * Cas d'utilisation : déplier la carte d'une playlist (liste complète des
+ * morceaux avec leurs infos) ou ouvrir la discussion. Une playlist
+ * « non listée » partagée dans un post reste lisible ici par tout le monde.
  * GET /api/community/posts/:id
  * ------------------------------------------------------------------- */
 router.get('/posts/:id', optionalAuth, asyncH(async (req, res) => {

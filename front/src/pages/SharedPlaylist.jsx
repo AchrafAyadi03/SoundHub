@@ -100,7 +100,7 @@ export default function SharedPlaylist() {
                   <span>{formatArtists(song.artists || song.artist)}</span>
                 </div>
                 <span className="playlist-track-album">{song.album_name || song.album || '—'}</span>
-                <span className="playlist-track-duration">{formatDuration(song.duration_ms)}</span>
+                <span className="playlist-track-duration">{formatDuration(song.track_duration_ms)}</span>
                 {isOwner && (
                   <button type="button" className="playlist-track-remove" onClick={() => removeTrack(songId)} aria-label={`Retirer ${song.track_name || song.title}`}>
                     <Trash2 size={16} />
